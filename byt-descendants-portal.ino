@@ -8,30 +8,11 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-// The pins for I2C are defined by the Wire-library.
-// On an arduino UNO:       A4(SDA), A5(SCL)
-// On an arduino MEGA 2560: 20(SDA), 21(SCL)
-// On an arduino LEONARDO:   2(SDA),  3(SCL), ...
 #define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// Use this example with the Adafruit Keypad products.
-// You'll need to know the Product ID for your keypad.
-// Here's a summary:
-//   * PID3844 4x4 Matrix Keypad
-//   * PID3845 3x4 Matrix Keypad
-//   * PID1824 3x4 Phone-style Matrix Keypad
-//   * PID1332 Membrane 1x4 Keypad
-//   * PID419  Membrane 3x4 Matrix Keypad
-
-#include "Adafruit_Keypad.h"
-
-// define your specific keypad here via PID
 #define KEYPAD_PID1332
-// define your pins here
-// can ignore ones that don't apply
 #define R1 12
 #define R2 8
 #define R3 10
@@ -40,10 +21,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define C4 9
 #define C1 10
 #define C2 11
-// leave this import after the above configuration
 #include "keypad_config.h"
 
-// initialize an instance of class NewKeypad
 Adafruit_Keypad customKeypad = Adafruit_Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 #include <Adafruit_NeoPixel.h>
@@ -55,6 +34,10 @@ Adafruit_Keypad customKeypad = Adafruit_Keypad(makeKeymap(keys), rowPins, colPin
 #define LED_COUNT (144 * 12)
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
+
+#include "UIController.h"
+
+UIController uiController(customKeypad, display, nullptr);
 
 void setup()
 {
@@ -117,60 +100,7 @@ void testdrawstyles()
 
 void loop()
 {
-  customKeypad.tick();
-
-  while (customKeypad.available())
-  {
-    keypadEvent e = customKeypad.read();
-    Serial.print((char)e.bit.KEY);
-
-    if (e.bit.EVENT == KEY_JUST_PRESSED)
-    {
-      display.clearDisplay();
-      display.setTextSize(1);              // Normal 1:1 pixel scale
-      display.setTextColor(SSD1306_WHITE); // Draw white text
-      display.setCursor(0, 0);             // Start at top-left corner
-
-      display.print((char)e.bit.KEY);
-      display.println(F(" pressed"));
-      display.display();
-    }
-    else if (e.bit.EVENT == KEY_JUST_RELEASED)
-    {
-      display.clearDisplay();
-      display.setTextSize(1);              // Normal 1:1 pixel scale
-      display.setTextColor(SSD1306_WHITE); // Draw white text
-      display.setCursor(0, 0);             // Start at top-left corner
-      display.print((char)e.bit.KEY);
-      display.println(F(" released"));
-      display.display();
-    }
-  }
-  /*
-  // Fill along the length of the strip in various colors...
-  colorWipe(strip.Color(255,   0,   0), 0); // Red
-  colorWipe(strip.Color(  0, 255,   0), 0); // Green
-  colorWipe(strip.Color(  0,   0, 255), 0); // Blue
-
-  rainbow(0);             // Flowing rainbow cycle along the whole strip
-  */
-}
-
-// Some functions of our own for creating animated effects -----------------
-
-// Fill strip pixels one after another with a color. Strip is NOT cleared
-// first; anything there will be covered pixel by pixel. Pass in color
-// (as a single 'packed' 32-bit value, which you can get by calling
-// strip.Color(red, green, blue) as shown in the loop() function above),
-// and a delay time (in milliseconds) between pixels.
-void colorWipe(uint32_t color, int wait)
-{
-  for (int i = 0; i < strip.numPixels(); i++)
-  {                                // For each pixel in strip...
-    strip.setPixelColor(i, color); //  Set pixel's color (in RAM)
-    strip.show();                  //  Update strip to match
-    delay(wait);                   //  Pause for a moment
-  }
+  uiController.Process();
 }
 
 // Rainbow cycle along whole strip. Pass delay time (in ms) between frames.
