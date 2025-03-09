@@ -41,13 +41,6 @@ UIController uiController(customKeypad, display, nullptr);
 
 void setup()
 {
-  // These lines are specifically to support the Adafruit Trinket 5V 16 MHz.
-  // Any other board, you can remove this part (but no harm leaving it):
-#if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
-  clock_prescale_set(clock_div_1);
-#endif
-  // END of Trinket-specific code.
-
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
   {
@@ -56,22 +49,15 @@ void setup()
       ; // Don't proceed, loop forever
   }
 
-  // Show initial display buffer contents on the screen --
-  // the library initializes this with an Adafruit splash screen.
   display.display();
   delay(2000); // Pause for 2 seconds
-
   customKeypad.begin();
-
-  // Clear the buffer
   display.clearDisplay();
-  // testdrawchar();      // Draw characters of the default font
+  testdrawstyles();
 
-  testdrawstyles(); // Draw 'stylized' characters
-
-  strip.begin();            // INITIALIZE NeoPixel strip object (REQUIRED)
-  strip.show();             // Turn OFF all pixels ASAP
-  strip.setBrightness(255); // Set BRIGHTNESS to about 1/5 (max = 255)
+  strip.begin();
+  strip.show();
+  strip.setBrightness(255);
 }
 
 void testdrawstyles()
