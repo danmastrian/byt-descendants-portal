@@ -98,7 +98,7 @@ void testdrawstyles()
   display.setTextSize(1);              // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.setCursor(0, 0);             // Start at top-left corner
-  display.println(F("Hello BYT!"));
+  display.println(F("SYSTEM READY"));
   display.println(F("Line 2"));
   display.println(F("Line 3"));
   display.println(F("Line 4"));
