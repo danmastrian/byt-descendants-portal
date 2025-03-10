@@ -90,46 +90,8 @@ public:
         {
             return parent;
         }
-    }
-};
 
-class UIStateMain : public UIState
-{
-private:
-
-    UIStateMenu* mainMenu;
-
-public:
-
-    UIStateMain()
-        : UIState(nullptr, "Main")
-    {
-        mainMenu = new UIStateMenu(
-            this,
-            "Main Menu",
-            new[]
-            {
-                UIStateDummy(this, "Item 1"),
-                UIStateDummy(this, "Item 2"),
-                UIStateDummy(this, "Item 3"),
-            },
-            3);
-    }
-
-    virtual void Render()
-    {
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.println(F("SYSTEM READY"));
-        display.setTextColor(SSD1306_WHITE);
-        display.println(F("Press OK for menu"));
-    }
-
-    UIState *HandleButtonPress(UIButton button)
-    {
-        if (button == OK)
-        {
-            return mainMenu;
-        }
+        return this;
     }
 };
 
@@ -171,7 +133,7 @@ public:
                 return parent;
 
             case Right:
-                if (currentIndex < menuItemCount - 1)
+                if (currentIndex < (menuItemCount - 1))
                 {
                     currentIndex++;
                     SetDirty();
@@ -187,7 +149,50 @@ public:
                 break;
 
             case OK:
-                return menuItems[currentIndex];
+                return &menuItems[currentIndex];
+        }
+
+        return this;
+    }
+};
+
+class UIStateMain : public UIState
+{
+private:
+
+    UIStateMenu* mainMenu;
+
+public:
+
+    UIStateMain()
+        : UIState(nullptr, "Main")
+    {
+        mainMenu = new UIStateMenu(
+            this,
+            "Main Menu",
+            new UIStateDummy[3]
+            {
+                UIStateDummy(this, "Item 1"), // wrong parent!
+                UIStateDummy(this, "Item 2"),
+                UIStateDummy(this, "Item 3"),
+            },
+            3);
+    }
+
+    virtual void Render()
+    {
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.println(F("SYSTEM READY"));
+        
+        display.setTextColor(SSD1306_WHITE);
+        display.println(F("Press OK for menu"));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        if (button == OK)
+        {
+            return mainMenu;
         }
 
         return this;
@@ -205,15 +210,15 @@ private:
 
     UIState *state;
 
-    UIButton TranslateKey(keypadEvent e)
+    UIButton TranslateKey(keypadEvent& e)
     {
-        switch (e.bit.KEY)
+        switch ((char)e.bit.KEY)
         {
-            case '1': return Back;
-            case '2': return Left;
-            case '3': return Right;
-            case '4': return OK;
-            default: return Back; // should never happen
+            case '1': return UIButton::Back;
+            case '2': return UIButton::Left;
+            case '3': return UIButton::Right;
+            case '4': return UIButton::OK;
+            default: return UIButton::Back; // should never happen
         }
     }
 
@@ -237,7 +242,7 @@ public:
         {
             keypadEvent e = keypad.read();
 
-            if (e.bit.EVENT == KEY_JUST_PRESSED)
+            if (e.bit.EVENT == KEY_JUST_RELEASED)
             {
                 UIState* newState = state->HandleButtonPress(TranslateKey(e));
                 if (newState != state)

@@ -13,14 +13,14 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #define KEYPAD_PID1332
-#define R1 12
-#define R2 8
-#define R3 10
-#define R4 11
-#define C3 6
-#define C4 9
-#define C1 10
-#define C2 11
+#define R1 5
+#define R2 99
+#define R3 99
+#define R4 99
+#define C3 9
+#define C4 10
+#define C1 11
+#define C2 12
 #include "keypad_config.h"
 
 Adafruit_Keypad customKeypad = Adafruit_Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
@@ -42,6 +42,9 @@ UIController uiController(customKeypad, display, &uiStateMain);
 
 void setup()
 {
+  Serial.begin(9600);
+  Serial.println("hello serial");
+  
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
   {
@@ -87,6 +90,19 @@ void testdrawstyles()
 
 void loop()
 {
+  /*
+  customKeypad.tick();
+
+  while (customKeypad.available())
+  {
+      keypadEvent e = customKeypad.read();
+
+      if (e.bit.EVENT == KEY_JUST_RELEASED)
+      {
+          Serial.println(e.bit.KEY);
+      }
+  } 
+  */
   uiController.Process();
 }
 
