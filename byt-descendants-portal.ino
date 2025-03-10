@@ -37,7 +37,8 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
 #include "UIController.h"
 
-UIController uiController(customKeypad, display, nullptr);
+UIStateMain uiStateMain;
+UIController uiController(customKeypad, display, &uiStateMain);
 
 void setup()
 {
