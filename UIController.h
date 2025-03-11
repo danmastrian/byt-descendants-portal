@@ -330,8 +330,6 @@ public:
 
     void Process()
     {
-        state->Tick();
-        
         keypad.tick();
 
         while (keypad.available())
@@ -349,6 +347,7 @@ public:
             }
         }
 
+        state->Tick();
         state->UpdateDisplay();
     }
 };
