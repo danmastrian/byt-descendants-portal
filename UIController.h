@@ -235,7 +235,7 @@ private:
     UIStateMenu* mainMenu;
     unsigned long lastUpdateMsec = 0;
 
-    const char statusGlyphs[] { "|/-\\" };
+    const char* statusGlyphs = "|/-\\" ;
     int statusGlyphIndex = 0;
 
 public:
@@ -258,7 +258,7 @@ public:
     {
         if ((millis() - lastUpdateMsec) > 100UL)
         {
-            statusGlyphIndex = (statusGlyphIndex + 1) % sizeof(statusGlyphs);
+            statusGlyphIndex = (statusGlyphIndex + 1) % 4;
             SetDirty();
             lastUpdateMsec = millis();
         }
