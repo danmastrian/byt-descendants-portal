@@ -54,56 +54,27 @@ void setup()
   }
 
   display.display();
-  delay(2000); // Pause for 2 seconds
+  delay(1000); // Pause for 2 seconds
+
   customKeypad.begin();
+
   display.clearDisplay();
-  testdrawstyles();
 
   strip.begin();
   strip.show();
   strip.setBrightness(255);
 }
 
-void testdrawstyles()
-{
-  display.clearDisplay();
-
-  display.setTextSize(1);              // Normal 1:1 pixel scale
-  display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.setCursor(0, 0);             // Start at top-left corner
-  display.println(F("SYSTEM READY 42"));
-  display.println(F("Line 2"));
-  display.println(F("Line 3"));
-  display.println(F("Line 4"));
-  display.println(F("Line 5")); // does not fit on screen!
-
-  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE); // Draw 'inverse' text
-  display.println(3.141592);
-
-  display.setTextSize(2); // Draw 2X-scale text
-  display.setTextColor(SSD1306_WHITE);
-  display.print(F("0x"));
-  display.println(0xDEADBEEF, HEX);
-
-  display.display();
-}
-
 void loop()
 {
-  /*
-  customKeypad.tick();
+  long startTimeMsec = millis();
 
-  while (customKeypad.available())
-  {
-      keypadEvent e = customKeypad.read();
-
-      if (e.bit.EVENT == KEY_JUST_RELEASED)
-      {
-          Serial.println(e.bit.KEY);
-      }
-  } 
-  */
   uiController.Process();
+  strip.show();
+
+  long endTimeMsec = millis();
+  long elapsedMsec = endTimeMsec - startTimeMsec;
+  fps = 1000.0 / elapsedMsec;
 }
 
 // Rainbow cycle along whole strip. Pass delay time (in ms) between frames.

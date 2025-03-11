@@ -1,6 +1,8 @@
 #include <Adafruit_Keypad.h>
 #include <Adafruit_GFX.h>
 
+double fps = 0.0;
+
 enum UIButton
 {
     Back,
@@ -18,11 +20,10 @@ private:
 
 protected:
 
-    UIState* parent;
+    UIState* parent = nullptr;
 
-    UIState(UIState* parent, const char* name)
-        : parent(parent),
-          name(name),
+    UIState(const char* name)
+        : name(name),
           isDirty(true)
     {
     }
@@ -58,12 +59,9 @@ public:
     
     virtual UIState *HandleButtonPress(UIButton button) = 0;
     
-    virtual void Activate()
+    void SetParent(UIState* parent)
     {
-    }
-    
-    virtual void Deactivate()
-    {
+        this->parent = parent;
     }
 };
 
@@ -71,8 +69,8 @@ class UIStateDummy : public UIState
 {
 public:
 
-    UIStateDummy(UIState* parent, const char* name)
-        : UIState(parent, name)
+    UIStateDummy(const char* name)
+        : UIState(name)
     {
     }
 
@@ -95,6 +93,76 @@ public:
     }
 };
 
+class SystemConfiguration
+{
+public:
+
+    int dmxStartChannel = 120;
+    const int DmxChannelCount = 5;
+};
+
+const int DMX_UNIVERSE_SIZE = 512;
+SystemConfiguration sysConfig;
+
+class UIStateConfigDmxChannel : public UIState
+{
+private:
+
+    int newStartChannel;
+    
+public:
+
+    UIStateConfigDmxChannel()
+        : UIState("DMX CHANNEL")
+    {
+        newStartChannel = sysConfig.dmxStartChannel;
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.print(F("Current Start: "));
+        display.print(sysConfig.dmxStartChannel);
+        display.print(F(" End: "));
+        display.println(sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1);
+        display.println();
+        display.print(F("New Start: "));
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.print(newStartChannel);
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+            case Back:
+                return parent;
+
+            case Right:
+                if (newStartChannel < DMX_UNIVERSE_SIZE - sysConfig.DmxChannelCount)
+                {
+                    newStartChannel++;
+                    SetDirty();
+                }
+                break;
+
+            case Left:
+                if (newStartChannel > 0)
+                {
+                    newStartChannel--;
+                    SetDirty();
+                }
+                break;
+
+            case OK:
+                sysConfig.dmxStartChannel = newStartChannel;
+                return parent;
+        }
+
+        return this;
+    }
+};
+
 class UIStateMenu : public UIState
 {
 private:
@@ -105,8 +173,8 @@ private:
 
 public:
 
-    UIStateMenu(UIState* parent, const char* name, UIState* menuItems, int menuItemCount)
-        : UIState(parent, name),
+    UIStateMenu(const char* name, UIState* menuItems, int menuItemCount)
+        : UIState(name),
           menuItems(menuItems),
           menuItemCount(menuItemCount),
           currentIndex(0)
@@ -115,14 +183,14 @@ public:
 
     virtual void Render()
     {
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
         display.println(F(GetName()));
-
-        display.setTextColor(SSD1306_WHITE);
+        display.println(F("Press BACK to exit"));
         display.println();
-        display.print(currentIndex > 0 ? F("< ") : F("  "));
+
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.print(currentIndex > 0 ? F(" < ") : F("   "));
         display.print(F(menuItems[currentIndex].GetName()));
-        display.println(currentIndex < (menuItemCount - 1) ? F(" >") : F("  "));
+        display.println(currentIndex < (menuItemCount - 1) ? F(" > ") : F("   "));
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -149,7 +217,9 @@ public:
                 break;
 
             case OK:
-                return &menuItems[currentIndex];
+                UIState* newState = &menuItems[currentIndex];
+                newState->SetParent(this);
+                return newState;
         }
 
         return this;
@@ -165,16 +235,15 @@ private:
 public:
 
     UIStateMain()
-        : UIState(nullptr, "Main")
+        : UIState("MAIN")
     {
         mainMenu = new UIStateMenu(
-            this,
-            "Main Menu",
+            "MAIN MENU",
             new UIStateDummy[3]
             {
-                UIStateDummy(this, "Item 1"), // wrong parent!
-                UIStateDummy(this, "Item 2"),
-                UIStateDummy(this, "Item 3"),
+                UIStateConfigDmxChannel(),
+                UIStateDummy("ITEM 2"),
+                UIStateDummy("Item 3"),
             },
             3);
     }
@@ -182,9 +251,15 @@ public:
     virtual void Render()
     {
         display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.println(F("SYSTEM READY"));
+        display.println(F(" *** SYSTEM READY *** "));
         
         display.setTextColor(SSD1306_WHITE);
+        display.print(F("Mode 0, Bright 255, DMX "));
+        display.print(sysConfig.dmxStartChannel);
+        display.println();
+        display.print(F("[ Idle - "));
+        display.print(fps);
+        display.println(F(" fps ]"));
         display.println(F("Press OK for menu"));
     }
 
@@ -192,6 +267,7 @@ public:
     {
         if (button == OK)
         {
+            mainMenu->SetParent(this);
             return mainMenu;
         }
 
@@ -242,13 +318,11 @@ public:
         {
             keypadEvent e = keypad.read();
 
-            if (e.bit.EVENT == KEY_JUST_RELEASED)
+            if (e.bit.EVENT == KEY_JUST_PRESSED)
             {
                 UIState* newState = state->HandleButtonPress(TranslateKey(e));
                 if (newState != state)
                 {
-                    state->Deactivate();
-                    newState->Activate();
                     newState->SetDirty();
                     state = newState;
                 }
