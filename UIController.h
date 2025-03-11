@@ -58,6 +58,10 @@ public:
     virtual void Render() = 0;
     
     virtual UIState *HandleButtonPress(UIButton button) = 0;
+
+    virtual void Tick()
+    {
+    }
     
     void SetParent(UIState* parent)
     {
@@ -126,7 +130,9 @@ public:
         display.println();
         display.print(F("New Start: "));
         display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.println(newStartChannel);
+        display.print(F(" "));
+        display.print(newStartChannel);
+        display.println(F(" "));
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -227,6 +233,7 @@ class UIStateMain : public UIState
 private:
 
     UIStateMenu* mainMenu;
+    unsigned long lastUpdateMsec = 0;
 
 public:
 
@@ -244,6 +251,15 @@ public:
             3);
     }
 
+    virtual void Tick()
+    {
+        if ((millis() - lastUpdateMsec) > 100UL)
+        {
+            SetDirty();
+            lastUpdateMsec = millis();
+        }
+    }
+
     virtual void Render()
     {
         display.println(F("SYSTEM READY"));
@@ -251,7 +267,7 @@ public:
         display.print(sysConfig.dmxStartChannel);
         display.println();
         display.print(F("Idle - "));
-        display.print(fps);
+        display.print((int)fps);
         display.println(F(" fps"));
         display.println(F("Press OK for menu"));
     }
@@ -305,6 +321,8 @@ public:
 
     void Process()
     {
+        state->Tick();
+        
         keypad.tick();
 
         while (keypad.available())

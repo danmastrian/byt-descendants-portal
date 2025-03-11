@@ -67,14 +67,15 @@ void setup()
 
 void loop()
 {
-  long startTimeMsec = millis();
+  unsigned long startTimeUsec = micros();
 
   uiController.Process();
-  strip.show();
+  //strip.show();
+  delay(2);
 
-  long endTimeMsec = millis();
-  long elapsedMsec = endTimeMsec - startTimeMsec;
-  fps = 1000.0 / elapsedMsec;
+  unsigned long endTimeUsec = micros();
+  unsigned long elapsedUsec = endTimeUsec - startTimeUsec;
+  fps = (double)1000000.0 / (double)elapsedUsec;
 }
 
 // Rainbow cycle along whole strip. Pass delay time (in ms) between frames.
