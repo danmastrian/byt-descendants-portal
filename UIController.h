@@ -76,9 +76,7 @@ public:
 
     virtual void Render()
     {
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
         display.println(F(GetName()));
-        display.setTextColor(SSD1306_WHITE);
         display.println(F("Press BACK to return"));
     }
 
@@ -121,14 +119,14 @@ public:
     virtual void Render()
     {
         display.println(F(GetName()));
-        display.print(F("Current Start: "));
+        display.print(F("Current: "));
         display.print(sysConfig.dmxStartChannel);
-        display.print(F(" End: "));
+        display.print(F("-"));
         display.println(sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1);
         display.println();
         display.print(F("New Start: "));
         display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.print(newStartChannel);
+        display.println(newStartChannel);
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -167,13 +165,13 @@ class UIStateMenu : public UIState
 {
 private:
 
-    UIState* menuItems;
+    UIState** menuItems;
     int menuItemCount;
     int currentIndex;
 
 public:
 
-    UIStateMenu(const char* name, UIState* menuItems, int menuItemCount)
+    UIStateMenu(const char* name, UIState** menuItems, int menuItemCount)
         : UIState(name),
           menuItems(menuItems),
           menuItemCount(menuItemCount),
@@ -186,10 +184,8 @@ public:
         display.println(F(GetName()));
         display.println(F("Press BACK to exit"));
         display.println();
-
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
         display.print(currentIndex > 0 ? F(" < ") : F("   "));
-        display.print(F(menuItems[currentIndex].GetName()));
+        display.print(F(menuItems[currentIndex]->GetName()));
         display.println(currentIndex < (menuItemCount - 1) ? F(" > ") : F("   "));
     }
 
@@ -217,7 +213,7 @@ public:
                 break;
 
             case OK:
-                UIState* newState = &menuItems[currentIndex];
+                UIState* newState = menuItems[currentIndex];
                 newState->SetParent(this);
                 return newState;
         }
@@ -239,27 +235,24 @@ public:
     {
         mainMenu = new UIStateMenu(
             "MAIN MENU",
-            new UIStateDummy[3]
+            new UIState*[3]
             {
-                UIStateConfigDmxChannel(),
-                UIStateDummy("ITEM 2"),
-                UIStateDummy("Item 3"),
+                new UIStateConfigDmxChannel(),
+                new UIStateDummy("ITEM 2"),
+                new UIStateDummy("Item 3"),
             },
             3);
     }
 
     virtual void Render()
     {
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.println(F(" *** SYSTEM READY *** "));
-        
-        display.setTextColor(SSD1306_WHITE);
-        display.print(F("Mode 0, Bright 255, DMX "));
+        display.println(F("SYSTEM READY"));
+        display.print(F("M 0, B 255, DMX "));
         display.print(sysConfig.dmxStartChannel);
         display.println();
-        display.print(F("[ Idle - "));
+        display.print(F("Idle - "));
         display.print(fps);
-        display.println(F(" fps ]"));
+        display.println(F(" fps"));
         display.println(F("Press OK for menu"));
     }
 
