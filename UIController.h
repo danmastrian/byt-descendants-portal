@@ -235,6 +235,9 @@ private:
     UIStateMenu* mainMenu;
     unsigned long lastUpdateMsec = 0;
 
+    const char statusGlyphs[] { "|/-\\" };
+    int statusGlyphIndex = 0;
+
 public:
 
     UIStateMain()
@@ -255,6 +258,7 @@ public:
     {
         if ((millis() - lastUpdateMsec) > 100UL)
         {
+            statusGlyphIndex = (statusGlyphIndex + 1) % sizeof(statusGlyphs);
             SetDirty();
             lastUpdateMsec = millis();
         }
@@ -262,13 +266,18 @@ public:
 
     virtual void Render()
     {
-        display.println(F("SYSTEM READY"));
+        display.print(F("SYSTEM READY "));
+        display.print(statusGlyphs[statusGlyphIndex]);
+        display.println();
+
         display.print(F("M 0, B 255, DMX "));
         display.print(sysConfig.dmxStartChannel);
         display.println();
+
         display.print(F("Idle - "));
         display.print((int)fps);
         display.println(F(" fps"));
+        
         display.println(F("Press OK for menu"));
     }
 
