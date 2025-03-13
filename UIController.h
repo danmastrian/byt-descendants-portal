@@ -346,16 +346,21 @@ public:
         display.println();
         display.println();
 
-        display.print(F("M 0, B "));
+        display.print(F("Mode 0"));
+        display.println();
+        
+        display.print(F("Brightness "));
         display.print(sysConfig.brightness);
-        display.print(F(", DMX "));
+        display.println();
+        
+        display.print(F("DMX Ch "));
         display.print(sysConfig.dmxStartChannel);
         display.println();
 
-        display.print(F("Idle - "));
         display.print(fps);
         display.println(F(" fps"));
-        
+
+        display.println();
         display.println(F("Press OK for menu"));
     }
 
