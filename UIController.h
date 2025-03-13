@@ -99,20 +99,7 @@ public:
     }
 };
 
-class SystemConfiguration
-{
-public:
 
-    uint16_t dmxStartChannel = 99;
-    uint8_t brightness = 97;
-    
-    const int DmxChannelCount = 5;
-};
-
-extern SystemConfiguration sysConfig;
-
-const int BRIGHTNESS_MAX = 255;
-const int DMX_UNIVERSE_SIZE = 512;
 
 class UIStateConfigBrightness : public UIState
 {
