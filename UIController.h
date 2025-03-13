@@ -111,7 +111,67 @@ public:
 
 extern SystemConfiguration sysConfig;
 
+const int BRIGHTNESS_MAX = 255;
 const int DMX_UNIVERSE_SIZE = 512;
+
+class UIStateConfigBrightness : public UIState
+{
+private:
+
+    int newValue;
+    
+public:
+
+    UIStateConfigBrightness()
+        : UIState("LED BRIGHTNESS")
+    {
+        newValue = sysConfig.brightness;
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.print(F("Current: "));
+        display.println(sysConfig.brightness);
+        display.println();
+        display.print(F("New Value: "));
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.print(F(" "));
+        display.print(newValue);
+        display.println(F(" "));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+            case Back:
+                return parent;
+
+            case Right:
+                if (newValue < BRIGHTNESS_MAX)
+                {
+                    newValue++;
+                    SetDirty();
+                }
+                break;
+
+            case Left:
+                if (newValue > 0)
+                {
+                    newValue--;
+                    SetDirty();
+                }
+                break;
+
+            case OK:
+                sysConfig.brightness = newValue;
+                return parent;
+        }
+
+        return this;
+    }
+};
 
 class UIStateConfigDmxChannel : public UIState
 {
