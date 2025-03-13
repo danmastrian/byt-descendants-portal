@@ -125,13 +125,17 @@ public:
     UIStateConfigBrightness()
         : UIState("LED BRIGHTNESS")
     {
+    }
+
+    virtual void Activate()
+    {
         newValue = sysConfig.brightness;
     }
 
     virtual void Render()
     {
         display.println(F(GetName()));
-        display.print(F("Current: "));
+        display.print(F("Current Value: "));
         display.println(sysConfig.brightness);
         display.println();
         display.print(F("New Value: "));
@@ -151,7 +155,7 @@ public:
             case Right:
                 if (newValue < BRIGHTNESS_MAX)
                 {
-                    newValue++;
+                    newValue += 5;
                     SetDirty();
                 }
                 break;
@@ -159,7 +163,7 @@ public:
             case Left:
                 if (newValue > 0)
                 {
-                    newValue--;
+                    newValue -= 5;
                     SetDirty();
                 }
                 break;
@@ -231,69 +235,6 @@ public:
 
             case OK:
                 sysConfig.dmxStartChannel = newStartChannel;
-                return parent;
-        }
-
-        return this;
-    }
-};
-
-class UIStateConfigBrightness : public UIState
-{
-private:
-
-    uint8_t newBrightness;
-    
-public:
-
-    UIStateConfigBrightness()
-        : UIState("BRIGHTNESS")
-    {
-    }
-
-    virtual void Activate()
-    {
-        newBrightness = sysConfig.brightness;
-    }
-
-    virtual void Render()
-    {
-        display.println(F(GetName()));
-        display.print(F("Current: "));
-        display.println(sysConfig.brightness);
-        display.println();
-        display.print(F("New: "));
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.print(F(" "));
-        display.print(newBrightness);
-        display.println(F(" "));
-    }
-
-    UIState *HandleButtonPress(UIButton button)
-    {
-        switch (button)
-        {
-            case Back:
-                return parent;
-
-            case Right:
-                if (newBrightness < DMX_UNIVERSE_SIZE - sysConfig.DmxChannelCount)
-                {
-                    newBrightness++;
-                    SetDirty();
-                }
-                break;
-
-            case Left:
-                if (newBrightness > 0)
-                {
-                    newBrightness--;
-                    SetDirty();
-                }
-                break;
-
-            case OK:
-                sysConfig.brightness = newBrightness;
                 return parent;
         }
 
