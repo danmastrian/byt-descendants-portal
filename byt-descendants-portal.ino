@@ -42,7 +42,7 @@ void setup()
   customKeypad.begin();
   StartupMessage("Keypad OK");
   
-  InitializeStorage();
+  sysConfig.InitializeStorage();
 
   StartupMessage("Init LED driver");
 
@@ -51,8 +51,6 @@ void setup()
 
   StartupMessage("Setup done.");
 }
-
-
 
 void loop()
 {
