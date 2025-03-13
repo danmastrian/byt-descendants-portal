@@ -1,7 +1,7 @@
 #include <Adafruit_Keypad.h>
 #include <Adafruit_GFX.h>
 
-double fps = 0.0;
+extern double fps;
 
 enum UIButton
 {
@@ -59,6 +59,10 @@ public:
     
     virtual UIState *HandleButtonPress(UIButton button) = 0;
 
+    virtual void Activate()
+    {
+    }
+
     virtual void Tick()
     {
     }
@@ -99,12 +103,15 @@ class SystemConfiguration
 {
 public:
 
-    int dmxStartChannel = 120;
+    uint16_t dmxStartChannel = 99;
+    uint8_t brightness = 97;
+    
     const int DmxChannelCount = 5;
 };
 
+extern SystemConfiguration sysConfig;
+
 const int DMX_UNIVERSE_SIZE = 512;
-SystemConfiguration sysConfig;
 
 class UIStateConfigDmxChannel : public UIState
 {
@@ -116,6 +123,10 @@ public:
 
     UIStateConfigDmxChannel()
         : UIState("DMX CHANNEL")
+    {
+    }
+
+    virtual void Activate()
     {
         newStartChannel = sysConfig.dmxStartChannel;
     }
@@ -160,6 +171,69 @@ public:
 
             case OK:
                 sysConfig.dmxStartChannel = newStartChannel;
+                return parent;
+        }
+
+        return this;
+    }
+};
+
+class UIStateConfigBrightness : public UIState
+{
+private:
+
+    uint8_t newBrightness;
+    
+public:
+
+    UIStateConfigBrightness()
+        : UIState("BRIGHTNESS")
+    {
+    }
+
+    virtual void Activate()
+    {
+        newBrightness = sysConfig.brightness;
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.print(F("Current: "));
+        display.println(sysConfig.brightness);
+        display.println();
+        display.print(F("New: "));
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.print(F(" "));
+        display.print(newBrightness);
+        display.println(F(" "));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+            case Back:
+                return parent;
+
+            case Right:
+                if (newBrightness < DMX_UNIVERSE_SIZE - sysConfig.DmxChannelCount)
+                {
+                    newBrightness++;
+                    SetDirty();
+                }
+                break;
+
+            case Left:
+                if (newBrightness > 0)
+                {
+                    newBrightness--;
+                    SetDirty();
+                }
+                break;
+
+            case OK:
+                sysConfig.brightness = newBrightness;
                 return parent;
         }
 
@@ -248,8 +322,8 @@ public:
             new UIState*[3]
             {
                 new UIStateConfigDmxChannel(),
-                new UIStateDummy("ITEM 2"),
-                new UIStateDummy("Item 3"),
+                new UIStateConfigBrightness(),
+                new UIStateDummy("MODE"),
             },
             3);
     }
@@ -269,13 +343,16 @@ public:
         display.print(F("SYSTEM READY "));
         display.print(statusGlyphs[statusGlyphIndex]);
         display.println();
+        display.println();
 
-        display.print(F("M 0, B 255, DMX "));
+        display.print(F("M 0, B "));
+        display.print(sysConfig.brightness);
+        display.print(F(", DMX "));
         display.print(sysConfig.dmxStartChannel);
         display.println();
 
         display.print(F("Idle - "));
-        display.print((int)fps);
+        display.print(fps);
         display.println(F(" fps"));
         
         display.println(F("Press OK for menu"));
@@ -341,6 +418,7 @@ public:
                 UIState* newState = state->HandleButtonPress(TranslateKey(e));
                 if (newState != state)
                 {
+                    newState->Activate();
                     newState->SetDirty();
                     state = newState;
                 }
