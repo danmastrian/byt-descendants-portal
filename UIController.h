@@ -99,18 +99,6 @@ public:
     }
 };
 
-class SystemConfiguration
-{
-public:
-
-    uint16_t dmxStartChannel = 99;
-    uint8_t brightness = 97;
-    
-    const int DmxChannelCount = 5;
-};
-
-extern SystemConfiguration sysConfig;
-
 const int BRIGHTNESS_MAX = 255;
 const int DMX_UNIVERSE_SIZE = 512;
 
@@ -170,6 +158,7 @@ public:
 
             case OK:
                 sysConfig.brightness = newValue;
+                sysConfig.Save();
                 return parent;
         }
 
@@ -235,6 +224,71 @@ public:
 
             case OK:
                 sysConfig.dmxStartChannel = newStartChannel;
+                sysConfig.Save();
+                return parent;
+        }
+
+        return this;
+    }
+};
+
+class UIStateConfigMode : public UIState
+{
+private:
+
+    int newMode;
+    
+public:
+
+    UIStateConfigMode()
+        : UIState("MODE")
+    {
+    }
+
+    virtual void Activate()
+    {
+        newMode = sysConfig.mode;
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.print(F("Current: "));
+        display.println(sysConfig.dmxStartChannel);
+        display.println();
+        display.print(F("New: "));
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.print(F(" "));
+        display.print(newMode);
+        display.println(F(" "));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+            case Back:
+                return parent;
+
+            case Right:
+                if (newMode < 10) // TODO
+                {
+                    newMode++;
+                    SetDirty();
+                }
+                break;
+
+            case Left:
+                if (newMode > 0)
+                {
+                    newMode--;
+                    SetDirty();
+                }
+                break;
+
+            case OK:
+                sysConfig.mode = newMode;
+                sysConfig.Save();
                 return parent;
         }
 
@@ -324,7 +378,7 @@ public:
             {
                 new UIStateConfigDmxChannel(),
                 new UIStateConfigBrightness(),
-                new UIStateDummy("MODE"),
+                new UIStateConfigMode(),
             },
             3);
     }
