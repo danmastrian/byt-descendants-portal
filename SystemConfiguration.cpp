@@ -17,75 +17,78 @@ SystemConfiguration sysConfig;
 
 bool SystemConfiguration::InitializeStorage()
 {
-  StartupMessage("InitializeStorage...");
-  
-  // Initialize flash library and check its chip ID.
-  if (!flash.begin())
-  {
-    Serial.println(F("Error, failed to initialize flash chip!"));
-    return false;
-  }
-  Serial.print(F("Flash chip JEDEC ID: 0x"));
-  Serial.println(flash.getJEDECID(), HEX);
-  StartupMessage("SD flash init OK");
+    StartupMessage("InitializeStorage...");
 
-  // First call begin to mount the filesystem.  Check that it returns true
-  // to make sure the filesystem was mounted.
-  if (!fatfs.begin(&flash))
-  {
-    Serial.println(F("Error, failed to mount newly formatted filesystem!"));
-    return false;
-  }
-  StartupMessage("FAT FS init OK");
+    // Initialize flash library and check its chip ID.
+    if (!flash.begin())
+    {
+        Serial.println(F("Error, failed to initialize flash chip!"));
+        return false;
+    }
+    Serial.print(F("Flash chip JEDEC ID: 0x"));
+    Serial.println(flash.getJEDECID(), HEX);
+    StartupMessage("SD flash init OK");
 
-  if (!fatfs.exists(DIR_CONFIG))
-  {
-    Serial.println(F("Test directory not found, creating..."));
-    fatfs.mkdir(DIR_CONFIG);
+    // First call begin to mount the filesystem.  Check that it returns true
+    // to make sure the filesystem was mounted.
+    if (!fatfs.begin(&flash))
+    {
+        Serial.println(F("Error, failed to mount newly formatted filesystem!"));
+        return false;
+    }
+    StartupMessage("FAT FS init OK");
 
     if (!fatfs.exists(DIR_CONFIG))
     {
-      Serial.println(F("Error, failed to create directory!"));
-      return false;
-    }
-  }
+        Serial.println(F("Test directory not found, creating..."));
+        fatfs.mkdir(DIR_CONFIG);
 
-  if (!fatfs.exists(FILE_CONFIG_SYSCONFIG))
-  {
-    // Default settings
-    PersistentConfigData data { 0, 50, 0 };
-    if (!Save(data))
+        if (!fatfs.exists(DIR_CONFIG))
+        {
+            Serial.println(F("Error, failed to create directory!"));
+            return false;
+        }
+    }
+
+    if (!fatfs.exists(FILE_CONFIG_SYSCONFIG))
     {
-        Serial.println(F("Error, failed to create " FILE_CONFIG_SYSCONFIG " file!"));
+        StartupMessage("Intializing config");
+        delay(10000);
+
+        // Default settings
+        PersistentConfigData data{0, 50, 0};
+        if (!Save(data))
+        {
+            Serial.println(F("Error, failed to create " FILE_CONFIG_SYSCONFIG " file!"));
+            return false;
+        }
+    }
+
+    // Now open the same file but for reading.
+    File32 readFile = fatfs.open(FILE_CONFIG_SYSCONFIG, FILE_READ);
+    if (!readFile)
+    {
+        Serial.println(F("Error, failed to open " FILE_CONFIG_SYSCONFIG " for reading!"));
         return false;
     }
-  }
 
-  // Now open the same file but for reading.
-  File32 readFile = fatfs.open(FILE_CONFIG_SYSCONFIG, FILE_READ);
-  if (!readFile)
-  {
-    Serial.println(F("Error, failed to open " FILE_CONFIG_SYSCONFIG " for reading!"));
-    return false;
-  }
+    StartupMessage("Reading config");
 
-  StartupMessage("Reading config");
+    // Read data using the same read, find, readString, etc. functions as when
+    // using the serial class.  See SD library File class for more documentation:
+    //   https://www.arduino.cc/en/reference/SD
 
-  // Read data using the same read, find, readString, etc. functions as when
-  // using the serial class.  See SD library File class for more documentation:
-  //   https://www.arduino.cc/en/reference/SD
+    PersistentConfigData loadedConfig;
+    if (readFile.read(&loadedConfig, sizeof(loadedConfig)) == sizeof(loadedConfig))
+    {
+        sysConfig.dmxStartChannel = loadedConfig.dmxStartChannel;
+        sysConfig.brightness = loadedConfig.brightness;
+        sysConfig.mode = loadedConfig.mode;
+        StartupMessage("Config OK");
+    }
+    readFile.close();
 
-  PersistentConfigData loadedConfig;
-  if (readFile.read(&loadedConfig, sizeof(loadedConfig)) == sizeof(loadedConfig))
-  {
-    sysConfig.dmxStartChannel = loadedConfig.dmxStartChannel;
-    sysConfig.brightness = loadedConfig.brightness;
-    sysConfig.mode = loadedConfig.mode;
-    StartupMessage("Config OK");  
-  }
-  readFile.close();
-
-  return true;
+    return true;
 }
 
 bool SystemConfiguration::Save()
@@ -99,20 +102,20 @@ bool SystemConfiguration::Save()
     return Save(data);
 }
 
-bool SystemConfiguration::Save(const PersistentConfigData& data)
+bool SystemConfiguration::Save(const PersistentConfigData &data)
 {
     File32 writeFile = fatfs.open(FILE_CONFIG_SYSCONFIG, FILE_WRITE);
     if (!writeFile)
     {
-      Serial.println(F("Error, failed to open " FILE_CONFIG_SYSCONFIG " for writing!"));
-      return false;
+        Serial.println(F("Error, failed to open " FILE_CONFIG_SYSCONFIG " for writing!"));
+        return false;
     }
     Serial.println(F("Opened file " FILE_CONFIG_SYSCONFIG " for writing/appending..."));
-  
+
     writeFile.write(&data, sizeof(data));
     writeFile.flush();
     writeFile.close();
-    
+
     Serial.println(F("Wrote to file " FILE_CONFIG_SYSCONFIG "!"));
     return true;
 }

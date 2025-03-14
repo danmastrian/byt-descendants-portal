@@ -14,23 +14,20 @@ enum UIButton
 class UIState
 {
 private:
-
-    const char* name;
+    const char *name;
     bool isDirty;
 
 protected:
+    UIState *parent = nullptr;
 
-    UIState* parent = nullptr;
-
-    UIState(const char* name)
+    UIState(const char *name)
         : name(name),
           isDirty(true)
     {
     }
 
 public:
-
-    const char* GetName()
+    const char *GetName()
     {
         return name;
     }
@@ -56,7 +53,7 @@ public:
     }
 
     virtual void Render() = 0;
-    
+
     virtual UIState *HandleButtonPress(UIButton button) = 0;
 
     virtual void Activate()
@@ -66,8 +63,8 @@ public:
     virtual void Tick()
     {
     }
-    
-    void SetParent(UIState* parent)
+
+    void SetParent(UIState *parent)
     {
         this->parent = parent;
     }
@@ -76,8 +73,7 @@ public:
 class UIStateDummy : public UIState
 {
 public:
-
-    UIStateDummy(const char* name)
+    UIStateDummy(const char *name)
         : UIState(name)
     {
     }
@@ -105,11 +101,9 @@ const int DMX_UNIVERSE_SIZE = 512;
 class UIStateConfigBrightness : public UIState
 {
 private:
-
     int newValue;
-    
-public:
 
+public:
     UIStateConfigBrightness()
         : UIState("LED BRIGHTNESS")
     {
@@ -137,29 +131,29 @@ public:
     {
         switch (button)
         {
-            case Back:
-                return parent;
+        case Back:
+            return parent;
 
-            case Right:
-                if (newValue < BRIGHTNESS_MAX)
-                {
-                    newValue += 5;
-                    SetDirty();
-                }
-                break;
+        case Right:
+            if (newValue < BRIGHTNESS_MAX)
+            {
+                newValue += 5;
+                SetDirty();
+            }
+            break;
 
-            case Left:
-                if (newValue > 0)
-                {
-                    newValue -= 5;
-                    SetDirty();
-                }
-                break;
+        case Left:
+            if (newValue > 0)
+            {
+                newValue -= 5;
+                SetDirty();
+            }
+            break;
 
-            case OK:
-                sysConfig.brightness = newValue;
-                sysConfig.Save();
-                return parent;
+        case OK:
+            sysConfig.brightness = newValue;
+            sysConfig.Save();
+            return parent;
         }
 
         return this;
@@ -169,11 +163,9 @@ public:
 class UIStateConfigDmxChannel : public UIState
 {
 private:
-
     int newStartChannel;
-    
-public:
 
+public:
     UIStateConfigDmxChannel()
         : UIState("DMX CHANNEL")
     {
@@ -203,29 +195,29 @@ public:
     {
         switch (button)
         {
-            case Back:
-                return parent;
+        case Back:
+            return parent;
 
-            case Right:
-                if (newStartChannel < DMX_UNIVERSE_SIZE - sysConfig.DmxChannelCount)
-                {
-                    newStartChannel++;
-                    SetDirty();
-                }
-                break;
+        case Right:
+            if (newStartChannel < DMX_UNIVERSE_SIZE - sysConfig.DmxChannelCount)
+            {
+                newStartChannel++;
+                SetDirty();
+            }
+            break;
 
-            case Left:
-                if (newStartChannel > 0)
-                {
-                    newStartChannel--;
-                    SetDirty();
-                }
-                break;
+        case Left:
+            if (newStartChannel > 0)
+            {
+                newStartChannel--;
+                SetDirty();
+            }
+            break;
 
-            case OK:
-                sysConfig.dmxStartChannel = newStartChannel;
-                sysConfig.Save();
-                return parent;
+        case OK:
+            sysConfig.dmxStartChannel = newStartChannel;
+            sysConfig.Save();
+            return parent;
         }
 
         return this;
@@ -235,11 +227,9 @@ public:
 class UIStateConfigMode : public UIState
 {
 private:
-
     int newMode;
-    
-public:
 
+public:
     UIStateConfigMode()
         : UIState("MODE")
     {
@@ -267,29 +257,29 @@ public:
     {
         switch (button)
         {
-            case Back:
-                return parent;
+        case Back:
+            return parent;
 
-            case Right:
-                if (newMode < 10) // TODO
-                {
-                    newMode++;
-                    SetDirty();
-                }
-                break;
+        case Right:
+            if (newMode < 10) // TODO
+            {
+                newMode++;
+                SetDirty();
+            }
+            break;
 
-            case Left:
-                if (newMode > 0)
-                {
-                    newMode--;
-                    SetDirty();
-                }
-                break;
+        case Left:
+            if (newMode > 0)
+            {
+                newMode--;
+                SetDirty();
+            }
+            break;
 
-            case OK:
-                sysConfig.mode = newMode;
-                sysConfig.Save();
-                return parent;
+        case OK:
+            sysConfig.mode = newMode;
+            sysConfig.Save();
+            return parent;
         }
 
         return this;
@@ -299,14 +289,12 @@ public:
 class UIStateMenu : public UIState
 {
 private:
-
-    UIState** menuItems;
+    UIState **menuItems;
     int menuItemCount;
     int currentIndex;
 
 public:
-
-    UIStateMenu(const char* name, UIState** menuItems, int menuItemCount)
+    UIStateMenu(const char *name, UIState **menuItems, int menuItemCount)
         : UIState(name),
           menuItems(menuItems),
           menuItemCount(menuItemCount),
@@ -328,29 +316,29 @@ public:
     {
         switch (button)
         {
-            case Back:
-                return parent;
+        case Back:
+            return parent;
 
-            case Right:
-                if (currentIndex < (menuItemCount - 1))
-                {
-                    currentIndex++;
-                    SetDirty();
-                }
-                break;
+        case Right:
+            if (currentIndex < (menuItemCount - 1))
+            {
+                currentIndex++;
+                SetDirty();
+            }
+            break;
 
-            case Left:
-                if (currentIndex > 0)
-                {
-                    currentIndex--;
-                    SetDirty();
-                }
-                break;
+        case Left:
+            if (currentIndex > 0)
+            {
+                currentIndex--;
+                SetDirty();
+            }
+            break;
 
-            case OK:
-                UIState* newState = menuItems[currentIndex];
-                newState->SetParent(this);
-                return newState;
+        case OK:
+            UIState *newState = menuItems[currentIndex];
+            newState->SetParent(this);
+            return newState;
         }
 
         return this;
@@ -360,22 +348,19 @@ public:
 class UIStateMain : public UIState
 {
 private:
-
-    UIStateMenu* mainMenu;
+    UIStateMenu *mainMenu;
     unsigned long lastUpdateMsec = 0;
 
-    const char* statusGlyphs = "|/-\\" ;
+    const char *statusGlyphs = "|/-\\";
     int statusGlyphIndex = 0;
 
 public:
-
     UIStateMain()
         : UIState("MAIN")
     {
         mainMenu = new UIStateMenu(
             "MAIN MENU",
-            new UIState*[3]
-            {
+            new UIState *[3]{
                 new UIStateConfigDmxChannel(),
                 new UIStateConfigBrightness(),
                 new UIStateConfigMode(),
@@ -402,11 +387,11 @@ public:
 
         display.print(F("Mode 0"));
         display.println();
-        
+
         display.print(F("Brightness "));
         display.print(sysConfig.brightness);
         display.println();
-        
+
         display.print(F("DMX Ch "));
         display.print(sysConfig.dmxStartChannel);
         display.println();
@@ -433,31 +418,33 @@ public:
 class UIController
 {
 protected:
-
-    Adafruit_Keypad& keypad;
-    Adafruit_SSD1306& display;
+    Adafruit_Keypad &keypad;
+    Adafruit_SSD1306 &display;
 
 private:
-
     UIState *state;
 
-    UIButton TranslateKey(keypadEvent& e)
+    UIButton TranslateKey(keypadEvent &e)
     {
         switch ((char)e.bit.KEY)
         {
-            case '1': return UIButton::Back;
-            case '2': return UIButton::Left;
-            case '3': return UIButton::Right;
-            case '4': return UIButton::OK;
-            default: return UIButton::Back; // should never happen
+        case '1':
+            return UIButton::Back;
+        case '2':
+            return UIButton::Left;
+        case '3':
+            return UIButton::Right;
+        case '4':
+            return UIButton::OK;
+        default:
+            return UIButton::Back; // should never happen
         }
     }
 
 public:
-
     UIController(
-        Adafruit_Keypad& keypad,
-        Adafruit_SSD1306& display,
+        Adafruit_Keypad &keypad,
+        Adafruit_SSD1306 &display,
         UIState *initialState)
         : keypad(keypad),
           display(display),
@@ -475,7 +462,7 @@ public:
 
             if (e.bit.EVENT == KEY_JUST_PRESSED)
             {
-                UIState* newState = state->HandleButtonPress(TranslateKey(e));
+                UIState *newState = state->HandleButtonPress(TranslateKey(e));
                 if (newState != state)
                 {
                     newState->Activate();
