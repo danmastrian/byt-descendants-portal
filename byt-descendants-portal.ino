@@ -50,7 +50,7 @@ void setup()
 
   StartupMessage("Setup done.");
 
-  delay(200);
+  delay(2000);
 }
 
 double fps = 0.0;
