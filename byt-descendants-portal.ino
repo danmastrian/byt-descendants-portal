@@ -31,11 +31,10 @@ void setup()
   sysConfig.InitializeStorage();
   StartupMessage("Flash config OK");
 
-  StartupMessage("Init LED driver");
-
   strip.begin();
   strip.clear();
   strip.setBrightness(sysConfig.brightness);
+
   for (int i = 0; i < LED_COUNT; i++)
   {
       strip.setPixelColor(
@@ -46,11 +45,10 @@ void setup()
         (i % 4) == 3 ? 255 : 0
       );
   }
+
   strip.show();
-
-  StartupMessage("Setup done.");
-
-  delay(2000);
+  StartupMessage("LED init OK");
+  delay(5000);
 }
 
 double fps = 0.0;
