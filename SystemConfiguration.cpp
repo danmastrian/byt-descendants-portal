@@ -105,7 +105,7 @@ bool SystemConfiguration::Save()
 
 bool SystemConfiguration::Save(const PersistentConfigData &data)
 {
-    File32 writeFile = fatfs.open(FILE_CONFIG_SYSCONFIG, FILE_WRITE);
+    File32 writeFile = fatfs.open(FILE_CONFIG_SYSCONFIG, O_RDWR | O_CREAT | O_TRUNC | O_SYNC);
     if (!writeFile)
     {
         Serial.println(F("Error, failed to open " FILE_CONFIG_SYSCONFIG " for writing!"));
