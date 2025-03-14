@@ -81,9 +81,10 @@ bool SystemConfiguration::InitializeStorage()
     PersistentConfigData loadedConfig;
     if (readFile.read(&loadedConfig, sizeof(loadedConfig)) == sizeof(loadedConfig))
     {
-        sysConfig.dmxStartChannel = loadedConfig.dmxStartChannel;
-        sysConfig.brightness = loadedConfig.brightness;
-        sysConfig.mode = loadedConfig.mode;
+        this->dmxStartChannel = loadedConfig.dmxStartChannel;
+        this->brightness = loadedConfig.brightness;
+        this->mode = loadedConfig.mode;
+
         StartupMessage("Config OK");
     }
     readFile.close();
@@ -95,9 +96,9 @@ bool SystemConfiguration::Save()
 {
     PersistentConfigData data;
 
-    data.dmxStartChannel = dmxStartChannel;
-    data.brightness = brightness;
-    data.mode = mode;
+    data.dmxStartChannel = this->dmxStartChannel;
+    data.brightness = this->brightness;
+    data.mode = this->mode;
 
     return Save(data);
 }
