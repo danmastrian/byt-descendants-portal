@@ -3,6 +3,7 @@
 #include <SPI.h>
 #include <SdFat.h>
 #include <Adafruit_SPIFlash.h>
+#include "flash_config.h"
 
 #define D_CONFIG "/config"
 #define F_CONFIG_SYSCONFIG "/config/sysconfig.bin"
@@ -11,7 +12,6 @@ const int BRIGHTNESS_MAX = 255;
 const int DMX_UNIVERSE_SIZE = 512;
 
 extern void StartupMessage(const char* msg);
-extern Adafruit_FlashTransport_QSPI flashTransport;
 
 typedef struct PersistentConfigData
 {
@@ -20,7 +20,7 @@ typedef struct PersistentConfigData
   uint8_t mode;  
 } PersistentConfigData;
 
-extern Adafruit_SPIFlash flash;
+extern Adafruit_SPIFlash flash(&flashTransport);
 extern FatVolume fatfs;
 
 class SystemConfiguration
