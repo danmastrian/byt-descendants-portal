@@ -34,9 +34,23 @@ void setup()
   StartupMessage("Init LED driver");
 
   strip.begin();
+  strip.clear();
+  strip.setBrightness(sysConfig.brightness);
+  for (int i = 0; i < LED_COUNT; i++)
+  {
+      strip.setPixelColor(
+        i,
+        (i % 4) == 0 ? 255 : 0,
+        (i % 4) == 1 ? 255 : 0,
+        (i % 4) == 2 ? 255 : 0,
+        (i % 4) == 3 ? 255 : 0
+      );
+  }
   strip.show();
 
   StartupMessage("Setup done.");
+
+  delay(200);
 }
 
 double fps = 0.0;
