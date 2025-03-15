@@ -1,37 +1,12 @@
 #include "SystemConfiguration.h"
 #include "Keypad.h"
 #include "Display.h"
-
-#include <Adafruit_NeoPixel.h>
-#ifdef __AVR__
-#include <avr/power.h> // Required for 16 MHz Adafruit Trinket
-#endif
-
-#define LED_PIN A0
-#define LED_COUNT (144 * 12)
-
-Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
-
 #include "UIController.h"
+#include "LedStrip.h"
+#include "Constants.h"
 
-UIStateMain uiStateMain;
-UIController uiController(customKeypad, display, &uiStateMain);
-
-void setup()
+void DisplayTestPattern()
 {
-  Serial.begin(115200);
-  Serial.println("hello serial");
-  
-  InitializeDisplay();
-  StartupMessage("Starting up...");
-
-  customKeypad.begin();
-  StartupMessage("Keypad OK");
-  
-  sysConfig.InitializeStorage();
-  StartupMessage("Flash config OK");
-
-  strip.begin();
   strip.clear();
   strip.setBrightness(sysConfig.brightness);
 
@@ -47,8 +22,29 @@ void setup()
   }
 
   strip.show();
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  Serial.println("hello serial");
+  
+  InitializeDisplay();
+  StartupMessage("Starting up...");
+
+  customKeypad.begin();
+  StartupMessage("Keypad OK");
+  
+  if (!sysConfig.InitializeStorage())
+  {
+    SystemPanic("Config load failed");
+  }
+  StartupMessage("Flash config OK");
+
+  strip.begin();
+  DisplayTestPattern();
   StartupMessage("LED init OK");
-  delay(5000);
+  delay(2000);
 }
 
 double fps = 0.0;
@@ -61,14 +57,13 @@ void loop()
   uiController.Process();
 
   strip.setBrightness(sysConfig.brightness);
-
   strip.clear();
+
   strip.setPixelColor(currentPixel++, 0, 0, 0, 255);
   if (currentPixel >= LED_COUNT)
     currentPixel = 0;
   
   strip.show();
-  delay(2);
 
   unsigned long endTimeUsec = micros();
   unsigned long elapsedUsec = endTimeUsec - startTimeUsec;

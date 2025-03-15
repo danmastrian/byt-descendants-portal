@@ -17,7 +17,7 @@ SystemConfiguration sysConfig;
 
 bool SystemConfiguration::InitializeStorage()
 {
-    StartupMessage("InitializeStorage...");
+    StartupMessage("SD flash initializing...");
 
     // Initialize flash library and check its chip ID.
     if (!flash.begin())
@@ -52,7 +52,7 @@ bool SystemConfiguration::InitializeStorage()
 
     if (!fatfs.exists(FILE_CONFIG_SYSCONFIG))
     {
-        StartupMessage("Intializing config");
+        StartupMessage("Configuration reset!");
         delay(10000);
 
         // Default settings
@@ -64,6 +64,8 @@ bool SystemConfiguration::InitializeStorage()
         }
     }
 
+    StartupMessage("Reading config");
+
     // Now open the same file but for reading.
     File32 readFile = fatfs.open(FILE_CONFIG_SYSCONFIG, FILE_READ);
     if (!readFile)
@@ -72,23 +74,24 @@ bool SystemConfiguration::InitializeStorage()
         return false;
     }
 
-    StartupMessage("Reading config");
-
     // Read data using the same read, find, readString, etc. functions as when
     // using the serial class.  See SD library File class for more documentation:
     //   https://www.arduino.cc/en/reference/SD
 
     PersistentConfigData loadedConfig;
-    if (readFile.read(&loadedConfig, sizeof(loadedConfig)) == sizeof(loadedConfig))
+    if (readFile.read(&loadedConfig, sizeof(loadedConfig)) != sizeof(loadedConfig))
     {
-        this->dmxStartChannel = loadedConfig.dmxStartChannel;
-        this->brightness = loadedConfig.brightness;
-        this->mode = loadedConfig.mode;
-
-        StartupMessage("Config OK");
+      readFile.close();
+      return false;
     }
+
     readFile.close();
 
+    this->dmxStartChannel = loadedConfig.dmxStartChannel;
+    this->brightness = loadedConfig.brightness;
+    this->mode = loadedConfig.mode;
+
+    StartupMessage("Config OK");
     return true;
 }
 

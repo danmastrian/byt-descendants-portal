@@ -1,0 +1,420 @@
+#include "UIController.h"
+#include "SystemConfiguration.h"
+#include "Constants.h"
+
+class UIStateDummy : public UIState
+{
+public:
+    UIStateDummy(const char *name)
+        : UIState(name)
+    {
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.println(F("Press BACK to return"));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        if (button == Back)
+        {
+            return parent;
+        }
+
+        return this;
+    }
+};
+
+class UIStateConfigBrightness : public UIState
+{
+private:
+    int newValue;
+
+public:
+    UIStateConfigBrightness()
+        : UIState("LED BRIGHTNESS")
+    {
+    }
+
+    virtual void Activate()
+    {
+        newValue = sysConfig.brightness;
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.print(F("Current Value: "));
+        display.println(sysConfig.brightness);
+        display.println();
+        display.print(F("New Value: "));
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.print(F(" "));
+        display.print(newValue);
+        display.println(F(" "));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+        case Back:
+            return parent;
+
+        case Right:
+            if (newValue < BRIGHTNESS_MAX)
+            {
+                newValue += 5;
+                SetDirty();
+            }
+            break;
+
+        case Left:
+            if (newValue > 0)
+            {
+                newValue -= 5;
+                SetDirty();
+            }
+            break;
+
+        case OK:
+            sysConfig.brightness = newValue;
+            sysConfig.Save();
+            return parent;
+        }
+
+        return this;
+    }
+};
+
+class UIStateConfigDmxChannel : public UIState
+{
+private:
+    int newStartChannel;
+
+public:
+    UIStateConfigDmxChannel()
+        : UIState("DMX CHANNEL")
+    {
+    }
+
+    virtual void Activate()
+    {
+        newStartChannel = sysConfig.dmxStartChannel;
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.print(F("Current: "));
+        display.print(sysConfig.dmxStartChannel);
+        display.print(F("-"));
+        display.println(sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1);
+        display.println();
+        display.print(F("New Start: "));
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.print(F(" "));
+        display.print(newStartChannel);
+        display.println(F(" "));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+        case Back:
+            return parent;
+
+        case Right:
+            if (newStartChannel < DMX_UNIVERSE_SIZE - sysConfig.DmxChannelCount)
+            {
+                newStartChannel++;
+                SetDirty();
+            }
+            break;
+
+        case Left:
+            if (newStartChannel > 0)
+            {
+                newStartChannel--;
+                SetDirty();
+            }
+            break;
+
+        case OK:
+            sysConfig.dmxStartChannel = newStartChannel;
+            sysConfig.Save();
+            return parent;
+        }
+
+        return this;
+    }
+};
+
+class UIStateConfigMode : public UIState
+{
+private:
+    int newMode;
+
+public:
+    UIStateConfigMode()
+        : UIState("MODE")
+    {
+    }
+
+    virtual void Activate()
+    {
+        newMode = sysConfig.mode;
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.print(F("Current: "));
+        display.println(sysConfig.dmxStartChannel);
+        display.println();
+        display.print(F("New: "));
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        display.print(F(" "));
+        display.print(newMode);
+        display.println(F(" "));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+        case Back:
+            return parent;
+
+        case Right:
+            if (newMode < 10) // TODO
+            {
+                newMode++;
+                SetDirty();
+            }
+            break;
+
+        case Left:
+            if (newMode > 0)
+            {
+                newMode--;
+                SetDirty();
+            }
+            break;
+
+        case OK:
+            sysConfig.mode = newMode;
+            sysConfig.Save();
+            return parent;
+        }
+
+        return this;
+    }
+};
+
+class UIStateMenu : public UIState
+{
+private:
+    UIState **menuItems;
+    int menuItemCount;
+    int currentIndex;
+
+public:
+    UIStateMenu(const char *name, UIState **menuItems, int menuItemCount)
+        : UIState(name),
+          menuItems(menuItems),
+          menuItemCount(menuItemCount),
+          currentIndex(0)
+    {
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.println(F("Press BACK to exit"));
+        display.println();
+        display.print(currentIndex > 0 ? F(" < ") : F("   "));
+        display.print(F(menuItems[currentIndex]->GetName()));
+        display.println(currentIndex < (menuItemCount - 1) ? F(" > ") : F("   "));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+        case Back:
+            return parent;
+
+        case Right:
+            if (currentIndex < (menuItemCount - 1))
+            {
+                currentIndex++;
+                SetDirty();
+            }
+            break;
+
+        case Left:
+            if (currentIndex > 0)
+            {
+                currentIndex--;
+                SetDirty();
+            }
+            break;
+
+        case OK:
+            UIState *newState = menuItems[currentIndex];
+            newState->SetParent(this);
+            return newState;
+        }
+
+        return this;
+    }
+};
+
+class UIStateMain : public UIState
+{
+private:
+    UIStateMenu *mainMenu;
+    unsigned long lastUpdateMsec = 0;
+
+    const char *statusGlyphs = "|/-\\";
+    int statusGlyphIndex = 0;
+
+public:
+    UIStateMain();
+    virtual void Tick();
+    virtual void Render();
+    virtual UIState* HandleButtonPress(UIButton button);
+};
+
+
+UIStateMain::UIStateMain()
+    : UIState("MAIN")
+{
+    mainMenu = new UIStateMenu(
+        "MAIN MENU",
+        new UIState *[3]{
+            new UIStateConfigDmxChannel(),
+            new UIStateConfigBrightness(),
+            new UIStateConfigMode(),
+        },
+        3);
+}
+
+void UIStateMain::Tick()
+{
+    if ((millis() - lastUpdateMsec) > 100UL)
+    {
+        statusGlyphIndex = (statusGlyphIndex + 1) % 4;
+        SetDirty();
+        lastUpdateMsec = millis();
+    }
+}
+
+void UIStateMain::Render()
+{
+    display.print(F("SYSTEM READY "));
+    display.print(statusGlyphs[statusGlyphIndex]);
+    display.println();
+    display.println();
+
+    display.print(F("Mode 0"));
+    display.println();
+
+    display.print(F("Brightness "));
+    display.print(sysConfig.brightness);
+    display.println();
+
+    display.print(F("DMX Ch "));
+    display.print(sysConfig.dmxStartChannel);
+    display.println();
+
+    display.print(fps);
+    display.println(F(" fps"));
+
+    display.println();
+    display.println(F("Press OK for menu"));
+}
+
+UIState* UIStateMain::HandleButtonPress(UIButton button)
+{
+    if (button == OK)
+    {
+        mainMenu->SetParent(this);
+        return mainMenu;
+    }
+
+    return this;
+}
+
+void UIState::UpdateDisplay()
+{
+    if (!isDirty)
+        return;
+
+    isDirty = false;
+
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.setTextColor(SSD1306_WHITE);
+    Render();
+    display.display();
+}
+
+UIButton UIController::TranslateKey(keypadEvent &e)
+{
+    switch ((char)e.bit.KEY)
+    {
+    case '1':
+        return UIButton::Back;
+    case '2':
+        return UIButton::Left;
+    case '3':
+        return UIButton::Right;
+    case '4':
+        return UIButton::OK;
+    default:
+        return UIButton::Back; // should never happen
+    }
+}
+
+UIController::UIController(
+    Adafruit_Keypad &keypad,
+    Adafruit_SSD1306 &display,
+    UIState *initialState)
+    : keypad(keypad),
+      display(display),
+      state(initialState)
+{
+}
+
+void UIController::Process()
+{
+    keypad.tick();
+
+    while (keypad.available())
+    {
+        keypadEvent e = keypad.read();
+
+        if (e.bit.EVENT == KEY_JUST_PRESSED)
+        {
+            UIState *newState = state->HandleButtonPress(TranslateKey(e));
+            if (newState != state)
+            {
+                newState->Activate();
+                newState->SetDirty();
+                state = newState;
+            }
+        }
+    }
+
+    state->Tick();
+    state->UpdateDisplay();
+}
+
+UIStateMain uiStateMain;
+UIController uiController(customKeypad, display, &uiStateMain);

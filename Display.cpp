@@ -35,3 +35,19 @@ void StartupMessage(const char *msg)
     display.display();
     delay(100);
 }
+
+void SystemPanic(const char *msg)
+{
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.setTextColor(SSD1306_WHITE);
+
+    display.println(F("< SYSTEM PANIC >"));
+    display.println();
+    display.println(msg);
+    display.display();
+    
+    // Halt
+    while (true) { delay(1000); }
+}
