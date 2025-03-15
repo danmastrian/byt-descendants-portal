@@ -1,6 +1,15 @@
 #include "LedStrip.h"
 #include "Constants.h"
 
-#define LED_PIN A0
+int8_t pins[] = {
+    SCK,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+};
 
-Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPXL8 strip(LED_COUNT, pins, NEO_GRBW + NEO_KHZ800);
