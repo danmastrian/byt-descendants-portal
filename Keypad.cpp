@@ -1,7 +1,7 @@
 #include "Keypad.h"
 
 #define KEYPAD_PID1332
-#define R1 5
+#define R1 13
 #define R2 99
 #define R3 99
 #define R4 99

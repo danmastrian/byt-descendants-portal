@@ -4,6 +4,7 @@
 #include "Keypad.h"
 
 extern double fps;
+extern unsigned long lastDmxPacketReceivedMsec;
 
 enum UIButton
 {

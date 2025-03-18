@@ -136,7 +136,7 @@ public:
             break;
 
         case Left:
-            if (newStartChannel > 0)
+            if (newStartChannel > 1)
             {
                 newStartChannel--;
                 SetDirty();
@@ -173,7 +173,7 @@ public:
     {
         display.println(F(GetName()));
         display.print(F("Current: "));
-        display.println(sysConfig.dmxStartChannel);
+        display.println(sysConfig.mode);
         display.println();
         display.print(F("New: "));
         display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
@@ -215,6 +215,84 @@ public:
     }
 };
 
+
+extern uint8_t dmxData[];
+
+class UIStateDmxDump : public UIState
+{
+private:
+    const unsigned long updatePeriodMsec = 50UL;
+    unsigned long lastUpdateMsec = 0;
+    unsigned long lastDmxPacketMsec = 0;
+    bool showDmxStatusGlyph = false;
+
+public:
+    UIStateDmxDump();
+    virtual void Tick();
+    virtual void Render();
+    virtual UIState* HandleButtonPress(UIButton button);
+};
+
+UIStateDmxDump::UIStateDmxDump()
+    : UIState("DMX DUMP")
+{
+}
+
+void UIStateDmxDump::Tick()
+{
+    if (millis() - lastUpdateMsec >= updatePeriodMsec)
+    {
+      SetDirty();
+      lastUpdateMsec = millis();
+    }
+}
+
+void UIStateDmxDump::Render()
+{
+    display.print(F(GetName()));
+
+    if (lastDmxPacketMsec != lastDmxPacketReceivedMsec)
+    {
+      lastDmxPacketMsec = lastDmxPacketReceivedMsec;
+      showDmxStatusGlyph = !showDmxStatusGlyph;
+    }
+    if (showDmxStatusGlyph)
+    {
+      display.print(" *");
+    }
+    display.println();
+
+    display.println(F("Press BACK to exit"));
+    display.println();
+
+    uint16_t startCh = sysConfig.dmxStartChannel;
+    uint16_t chCount = sysConfig.DmxChannelCount;
+    const uint16_t lineCount = 4;
+
+    for (uint16_t ch = startCh; ch < startCh + min(chCount, lineCount); ++ch)
+    {
+      if (ch + lineCount < startCh + chCount)
+      {
+        display.printf("%3d = %3d | %3d = %3d\n", ch, dmxData[ch], ch + lineCount, dmxData[ch + lineCount]);
+      }
+      else
+      {
+        display.printf("%3d = %3d |\n", ch, dmxData[ch]);
+      }
+    }
+}
+
+UIState *UIStateDmxDump::HandleButtonPress(UIButton button)
+{
+    switch (button)
+    {
+      case Back:
+          return parent;
+    }
+
+    return this;
+}
+
 class UIStateMenu : public UIState
 {
 private:
@@ -236,6 +314,8 @@ public:
         display.println(F(GetName()));
         display.println(F("Press BACK to exit"));
         display.println();
+        
+        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
         display.print(currentIndex > 0 ? F(" < ") : F("   "));
         display.print(F(menuItems[currentIndex]->GetName()));
         display.println(currentIndex < (menuItemCount - 1) ? F(" > ") : F("   "));
@@ -279,6 +359,8 @@ class UIStateMain : public UIState
 private:
     UIStateMenu *mainMenu;
     unsigned long lastUpdateMsec = 0;
+    unsigned long lastDmxPacketMsec = 0;
+    bool showDmxStatusGlyph = false;
 
     const char *statusGlyphs = "|/-\\";
     int statusGlyphIndex = 0;
@@ -290,23 +372,25 @@ public:
     virtual UIState* HandleButtonPress(UIButton button);
 };
 
+const int menuItemCount = 4;
 
 UIStateMain::UIStateMain()
     : UIState("MAIN")
 {
     mainMenu = new UIStateMenu(
         "MAIN MENU",
-        new UIState *[3]{
+        new UIState *[menuItemCount] {
+            new UIStateDmxDump(),
             new UIStateConfigDmxChannel(),
             new UIStateConfigBrightness(),
             new UIStateConfigMode(),
         },
-        3);
+        menuItemCount);
 }
 
 void UIStateMain::Tick()
 {
-    if ((millis() - lastUpdateMsec) > 100UL)
+    if ((millis() - lastUpdateMsec) > 50UL)
     {
         statusGlyphIndex = (statusGlyphIndex + 1) % 4;
         SetDirty();
@@ -328,11 +412,23 @@ void UIStateMain::Render()
     display.print(sysConfig.brightness);
     display.println();
 
+    if (lastDmxPacketMsec != lastDmxPacketReceivedMsec)
+    {
+      lastDmxPacketMsec = lastDmxPacketReceivedMsec;
+      showDmxStatusGlyph = !showDmxStatusGlyph;
+    }
+
     display.print(F("DMX Ch "));
     display.print(sysConfig.dmxStartChannel);
+    display.print(F("-"));
+    display.print(sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1);
+    if (showDmxStatusGlyph)
+    {
+      display.print(" *");
+    }
     display.println();
 
-    display.print(fps);
+    display.print((int)fps);
     display.println(F(" fps"));
 
     display.println();

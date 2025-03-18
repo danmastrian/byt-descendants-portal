@@ -4,6 +4,20 @@
 #include "UIController.h"
 #include "LedStrip.h"
 #include "Constants.h"
+#include <Wire.h>
+#include "wiring_private.h"
+
+#define I2C_DEV_ADDR 0x55
+
+unsigned long lastDmxPacketReceivedMsec = 0;
+uint8_t dmxData[513] = { 0 };
+
+TwoWire myWire(&sercom4, A2, A3);
+
+void SERCOM4_0_Handler() { myWire.onService(); }
+void SERCOM4_1_Handler() { myWire.onService(); }
+void SERCOM4_2_Handler() { myWire.onService(); }
+void SERCOM4_3_Handler() { myWire.onService(); }
 
 void DisplayTestPattern()
 {
@@ -24,10 +38,58 @@ void DisplayTestPattern()
   strip.show();
 }
 
+void onReceive(int len) 
+{
+  Serial.printf("onReceive[%d]: ", len);
+
+  uint8_t recvBuf[len];
+  for (int i = 0; i < len; ++i)
+  {
+    if (myWire.available())
+    {
+      recvBuf[i] = myWire.read();
+    }
+    else
+    {
+      Serial.printf("I2C PACKET READ ERROR: len = %d bytes, failed read at byte %d\n", len, i);
+    }
+  }
+
+  uint8_t startCh = recvBuf[0]; // BUGBUG: CHANNELS are uint16!
+  uint8_t chCount = recvBuf[1];
+
+  if (len != chCount + 2)
+  {
+    Serial.printf("MALFORMED I2C PACKET: len = %d bytes, expected chCount = %d\n", len, chCount);
+    return;
+  }
+
+  lastDmxPacketReceivedMsec = millis();
+  
+  for (uint8_t i = 0; i < chCount; ++i)
+  {
+    dmxData[startCh + i] = recvBuf[2 + i];
+    //Serial.write(dmxData[chIdx]);
+    Serial.printf("[%03d:%03d]", startCh + i, dmxData[startCh + i]);
+  }
+  Serial.println();
+}
+
 void setup()
 {
   Serial.begin(115200);
   Serial.println("hello serial");
+
+  pinPeripheral(A2, PIO_SERCOM_ALT);
+  pinPeripheral(A3, PIO_SERCOM_ALT);
+
+  myWire.onReceive(onReceive);
+  //myWire.onRequest(onRequest);
+  myWire.begin((uint8_t)I2C_DEV_ADDR);
+  //myWire.setClock(100000);
+
+  pinPeripheral(A2, PIO_SERCOM_ALT);
+  pinPeripheral(A3, PIO_SERCOM_ALT);
   
   InitializeDisplay();
   StartupMessage("Starting up...");
@@ -69,7 +131,7 @@ void loop()
   unsigned long endTimeUsec = micros();
   unsigned long elapsedUsec = endTimeUsec - startTimeUsec;
 
-  Serial.println(elapsedUsec);
+  //Serial.println(elapsedUsec);
   fps = (double)1000000.0 / (double)elapsedUsec;
 }
 
