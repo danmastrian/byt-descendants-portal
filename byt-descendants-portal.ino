@@ -70,9 +70,9 @@ void onReceive(int len)
   {
     dmxData[startCh + i] = recvBuf[2 + i];
     //Serial.write(dmxData[chIdx]);
-    Serial.printf("[%03d:%03d]", startCh + i, dmxData[startCh + i]);
+    //Serial.printf("[%03d:%03d]", startCh + i, dmxData[startCh + i]);
   }
-  Serial.println();
+  //Serial.println();
 }
 
 void setup()
