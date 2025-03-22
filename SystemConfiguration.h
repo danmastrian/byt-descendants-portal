@@ -19,7 +19,7 @@ public:
     uint8_t brightness = 97;
     uint8_t mode = 42;
 
-    const int DmxChannelCount = 5;
+    const int DmxChannelCount = 8;
 
     bool InitializeStorage();
     bool Save();

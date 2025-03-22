@@ -12,7 +12,15 @@
 unsigned long lastDmxPacketReceivedMsec = 0;
 uint8_t dmxData[513] = { 0 };
 
-TwoWire myWire(&sercom4, A2, A3);
+#define DMX_INPUT_PIN_SDA A2
+#define DMX_INPUT_PIN_SCK A3
+
+TwoWire myWire(&sercom4, DMX_INPUT_PIN_SDA, DMX_INPUT_PIN_SCK);
+
+double fps = 0.0;
+
+#define ROWS 1
+#define COLS 4
 
 void SERCOM4_0_Handler() { myWire.onService(); }
 void SERCOM4_1_Handler() { myWire.onService(); }
@@ -40,19 +48,12 @@ void DisplayTestPattern()
 
 void onReceive(int len) 
 {
-  Serial.printf("onReceive[%d]: ", len);
+  //Serial.printf("onReceive[%d]: ", len);
 
   uint8_t recvBuf[len];
   for (int i = 0; i < len; ++i)
   {
-    if (myWire.available())
-    {
-      recvBuf[i] = myWire.read();
-    }
-    else
-    {
-      Serial.printf("I2C PACKET READ ERROR: len = %d bytes, failed read at byte %d\n", len, i);
-    }
+    recvBuf[i] = myWire.read();
   }
 
   uint8_t startCh = recvBuf[0]; // BUGBUG: CHANNELS are uint16!
@@ -69,32 +70,83 @@ void onReceive(int len)
   for (uint8_t i = 0; i < chCount; ++i)
   {
     dmxData[startCh + i] = recvBuf[2 + i];
-    //Serial.write(dmxData[chIdx]);
     //Serial.printf("[%03d:%03d]", startCh + i, dmxData[startCh + i]);
   }
   //Serial.println();
 }
 
+class DisplayProcessor
+{
+public:
+
+  virtual void Render() const;
+};
+
+class DummyDisplayProcessor : public DisplayProcessor
+{
+public:
+
+  virtual void Render() const
+  {
+  }
+};
+
+class DisplayController
+{
+private:
+
+  const DisplayProcessor* processor;
+
+public:
+
+  DisplayController(const DisplayProcessor* processor)
+  {
+    this->processor = processor;
+  }
+
+  void Render() const;
+  void SetProcessor(const DisplayProcessor* processor);
+};
+
+void DisplayController::Render() const
+{
+  strip.setBrightness(sysConfig.brightness);
+  strip.clear();
+
+  processor->Render();
+
+  strip.show();
+}
+
+void DisplayController::SetProcessor(const DisplayProcessor* processor)
+{
+  this->processor = processor;
+}
+
+DummyDisplayProcessor ddp;
+DisplayController dc(&ddp);
+
 void setup()
 {
   Serial.begin(115200);
-  Serial.println("hello serial");
-
-  pinPeripheral(A2, PIO_SERCOM_ALT);
-  pinPeripheral(A3, PIO_SERCOM_ALT);
+  Serial.println("Serial comms OK");
 
   myWire.onReceive(onReceive);
-  //myWire.onRequest(onRequest);
   myWire.begin((uint8_t)I2C_DEV_ADDR);
-  //myWire.setClock(100000);
+  //myWire.setClock(400000);
+  //myWire.setWireTimeout();
 
-  pinPeripheral(A2, PIO_SERCOM_ALT);
-  pinPeripheral(A3, PIO_SERCOM_ALT);
+  // Critical that these come *after* the TwoWire::begin() call above
+  pinPeripheral(DMX_INPUT_PIN_SDA, PIO_SERCOM_ALT);
+  pinPeripheral(DMX_INPUT_PIN_SCK, PIO_SERCOM_ALT);
   
   InitializeDisplay();
   StartupMessage("Starting up...");
 
-  customKeypad.begin();
+  if (!InitKeypad())
+  {
+    SystemPanic("Failed to init keypad");
+  }
   StartupMessage("Keypad OK");
   
   if (!sysConfig.InitializeStorage())
@@ -106,27 +158,15 @@ void setup()
   strip.begin();
   DisplayTestPattern();
   StartupMessage("LED init OK");
-  delay(2000);
+  delay(1000);
 }
-
-double fps = 0.0;
-//int currentPixel = 0;
 
 void loop()
 {
   unsigned long startTimeUsec = micros();
 
   uiController.Process();
-
-  strip.setBrightness(sysConfig.brightness);
-  strip.clear();
-
-  //strip.setPixelColor(currentPixel++, 0, 0, 0, 255);
-  //if (currentPixel >= LED_COUNT)
-  //  currentPixel = 0;
-  rainbow(0);
-  
-  strip.show();
+  dc.Render();
 
   unsigned long endTimeUsec = micros();
   unsigned long elapsedUsec = endTimeUsec - startTimeUsec;

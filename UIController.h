@@ -63,17 +63,15 @@ public:
 class UIController
 {
 protected:
-    Adafruit_Keypad &keypad;
     Adafruit_SSD1306 &display;
 
 private:
     UIState *state;
 
-    UIButton TranslateKey(keypadEvent &e);
+    UIButton TranslateKey(char key);
 
 public:
     UIController(
-        Adafruit_Keypad &keypad,
         Adafruit_SSD1306 &display,
         UIState *initialState);
 

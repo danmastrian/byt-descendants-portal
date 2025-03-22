@@ -461,9 +461,9 @@ void UIState::UpdateDisplay()
     display.display();
 }
 
-UIButton UIController::TranslateKey(keypadEvent &e)
+UIButton UIController::TranslateKey(char key)
 {
-    switch ((char)e.bit.KEY)
+    switch (key)
     {
     case '1':
         return UIButton::Back;
@@ -479,33 +479,25 @@ UIButton UIController::TranslateKey(keypadEvent &e)
 }
 
 UIController::UIController(
-    Adafruit_Keypad &keypad,
     Adafruit_SSD1306 &display,
     UIState *initialState)
-    : keypad(keypad),
-      display(display),
+    : display(display),
       state(initialState)
 {
 }
 
 void UIController::Process()
 {
-    keypad.tick();
-
-    while (keypad.available())
+    char key = GetKeyPressEvent();
+    if (key != 0)
     {
-        keypadEvent e = keypad.read();
-
-        if (e.bit.EVENT == KEY_JUST_PRESSED)
-        {
-            UIState *newState = state->HandleButtonPress(TranslateKey(e));
-            if (newState != state)
-            {
-                newState->Activate();
-                newState->SetDirty();
-                state = newState;
-            }
-        }
+      UIState *newState = state->HandleButtonPress(TranslateKey(key));
+      if (newState != state)
+      {
+          newState->Activate();
+          newState->SetDirty();
+          state = newState;
+      }
     }
 
     state->Tick();
@@ -513,4 +505,4 @@ void UIController::Process()
 }
 
 UIStateMain uiStateMain;
-UIController uiController(customKeypad, display, &uiStateMain);
+UIController uiController(display, &uiStateMain);
