@@ -131,16 +131,24 @@ public:
             if (newStartChannel < DMX_UNIVERSE_SIZE - sysConfig.DmxChannelCount)
             {
                 newStartChannel++;
-                SetDirty();
             }
+            else
+            {
+                newStartChannel = 1;
+            }
+            SetDirty();
             break;
 
         case Left:
             if (newStartChannel > 1)
             {
                 newStartChannel--;
-                SetDirty();
             }
+            else
+            {
+                newStartChannel = DMX_UNIVERSE_SIZE - sysConfig.DmxChannelCount + 1;
+            }
+            SetDirty();
             break;
 
         case OK:

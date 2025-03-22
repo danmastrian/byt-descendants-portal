@@ -48,6 +48,7 @@ void DisplayTestPattern()
 
 void onReceive(int len) 
 {
+  const int headerBytes = 3;
   //Serial.printf("onReceive[%d]: ", len);
 
   uint8_t recvBuf[len];
@@ -56,10 +57,11 @@ void onReceive(int len)
     recvBuf[i] = myWire.read();
   }
 
-  uint8_t startCh = recvBuf[0]; // BUGBUG: CHANNELS are uint16!
-  uint8_t chCount = recvBuf[1];
+  // Read header
+  uint16_t startCh = (((uint16_t)recvBuf[0]) << 8) | recvBuf[1];
+  uint8_t chCount = recvBuf[2];
 
-  if (len != chCount + 2)
+  if (len != chCount + headerBytes)
   {
     Serial.printf("MALFORMED I2C PACKET: len = %d bytes, expected chCount = %d\n", len, chCount);
     return;
@@ -69,7 +71,7 @@ void onReceive(int len)
   
   for (uint8_t i = 0; i < chCount; ++i)
   {
-    dmxData[startCh + i] = recvBuf[2 + i];
+    dmxData[startCh + i] = recvBuf[headerBytes + i];
     //Serial.printf("[%03d:%03d]", startCh + i, dmxData[startCh + i]);
   }
   //Serial.println();
@@ -88,6 +90,7 @@ public:
 
   virtual void Render() const
   {
+    rainbow(0);
   }
 };
 
