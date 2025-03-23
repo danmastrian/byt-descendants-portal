@@ -1,31 +1,49 @@
+#include "Constants.h"
 #include "SystemConfiguration.h"
 #include "Keypad.h"
 #include "Display.h"
 #include "UIController.h"
 #include "LedStrip.h"
-#include "Constants.h"
+#include "RenderController.h"
 #include <Wire.h>
 #include "wiring_private.h"
 
+#define STATIC_ASSERT(condition) typedef char p__LINE__[ (condition) ? 1 : -1];
+#define ASSERT_TYPE_SIZE(type, bytes) STATIC_ASSERT(sizeof(type) == (bytes))
+
+ASSERT_TYPE_SIZE(long, 4)
+ASSERT_TYPE_SIZE(int, 4)
+ASSERT_TYPE_SIZE(uint8_t, 1)
+
 #define I2C_DEV_ADDR 0x55
-
-unsigned long lastDmxPacketReceivedMsec = 0;
-uint8_t dmxData[513] = { 0 };
-
 #define DMX_INPUT_PIN_SDA A2
 #define DMX_INPUT_PIN_SCK A3
 
+// SERCOM setup for the secondary i2c bus that receives the DMX data forwarded from the other MCU
 TwoWire myWire(&sercom4, DMX_INPUT_PIN_SDA, DMX_INPUT_PIN_SCK);
-
-double fps = 0.0;
-
-#define ROWS 1
-#define COLS 4
 
 void SERCOM4_0_Handler() { myWire.onService(); }
 void SERCOM4_1_Handler() { myWire.onService(); }
 void SERCOM4_2_Handler() { myWire.onService(); }
 void SERCOM4_3_Handler() { myWire.onService(); }
+
+// Global data
+double fps = 0.0;
+unsigned long lastDmxPacketReceivedMsec = 0;
+uint8_t dmxData[513] = { 0 };
+
+class DummyRenderProcessor : public RenderProcessor
+{
+public:
+
+  virtual void Render() const
+  {
+    rainbow();
+  }
+};
+
+DummyRenderProcessor drp;
+RenderController renderer(&drp);
 
 void DisplayTestPattern()
 {
@@ -46,6 +64,7 @@ void DisplayTestPattern()
   strip.show();
 }
 
+// i2c ISR for DMX data coming from the other MCU
 void onReceive(int len) 
 {
   const int headerBytes = 3;
@@ -77,69 +96,18 @@ void onReceive(int len)
   //Serial.println();
 }
 
-class DisplayProcessor
-{
-public:
-
-  virtual void Render() const;
-};
-
-class DummyDisplayProcessor : public DisplayProcessor
-{
-public:
-
-  virtual void Render() const
-  {
-    rainbow(0);
-  }
-};
-
-class DisplayController
-{
-private:
-
-  const DisplayProcessor* processor;
-
-public:
-
-  DisplayController(const DisplayProcessor* processor)
-  {
-    this->processor = processor;
-  }
-
-  void Render() const;
-  void SetProcessor(const DisplayProcessor* processor);
-};
-
-void DisplayController::Render() const
-{
-  strip.setBrightness(sysConfig.brightness);
-  strip.clear();
-
-  processor->Render();
-
-  strip.show();
-}
-
-void DisplayController::SetProcessor(const DisplayProcessor* processor)
-{
-  this->processor = processor;
-}
-
-DummyDisplayProcessor ddp;
-DisplayController dc(&ddp);
-
 void setup()
 {
   Serial.begin(115200);
-  Serial.println("Serial comms OK");
+  Serial.println("Serial comm init OK");
 
   myWire.onReceive(onReceive);
   myWire.begin((uint8_t)I2C_DEV_ADDR);
   //myWire.setClock(400000);
   //myWire.setWireTimeout();
 
-  // Critical that these come *after* the TwoWire::begin() call above
+  // Critical that these come *after* the TwoWire::begin() call above.
+  // Map these pins to the alternate SERCOM (#4)
   pinPeripheral(DMX_INPUT_PIN_SDA, PIO_SERCOM_ALT);
   pinPeripheral(DMX_INPUT_PIN_SCK, PIO_SERCOM_ALT);
   
@@ -169,7 +137,7 @@ void loop()
   unsigned long startTimeUsec = micros();
 
   uiController.Process();
-  dc.Render();
+  renderer.Render();
 
   unsigned long endTimeUsec = micros();
   unsigned long elapsedUsec = endTimeUsec - startTimeUsec;
@@ -178,10 +146,10 @@ void loop()
   fps = (double)1000000.0 / (double)elapsedUsec;
 }
 
-// Rainbow cycle along whole strip. Pass delay time (in ms) between frames.
-void rainbow(int wait)
+void rainbow()
 {
-  long firstPixelHue = millis() % 65536;
+  const long cyclePeriodMsec = 1000;
+  long firstPixelHue = (millis() % cyclePeriodMsec) * 65536 / cyclePeriodMsec;
 
   // strip.rainbow() can take a single argument (first pixel hue) or
   // optionally a few extras: number of rainbow repetitions (default 1),
