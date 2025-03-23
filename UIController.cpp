@@ -66,17 +66,27 @@ public:
         case Right:
             if (newValue < BRIGHTNESS_MAX)
             {
-                newValue += 5;
-                SetDirty();
+                newValue += BRIGHTNESS_STEP;
             }
+            else
+            {
+                // Wrap around to minimum
+                newValue = BRIGHTNESS_MIN;
+            }
+            SetDirty();
             break;
 
         case Left:
-            if (newValue > 0)
+            if (newValue > BRIGHTNESS_MIN)
             {
-                newValue -= 5;
-                SetDirty();
+                newValue -= BRIGHTNESS_STEP;
             }
+            else
+            {
+                // Wrap around to maximum
+                newValue = BRIGHTNESS_MAX;
+            }
+            SetDirty();
             break;
 
         case OK:

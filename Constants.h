@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 
+const int BRIGHTNESS_STEP = 5;
+const int BRIGHTNESS_MIN = 5;
 const int BRIGHTNESS_MAX = 255;
 const int DMX_UNIVERSE_SIZE = 512;
 
