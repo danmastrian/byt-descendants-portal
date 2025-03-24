@@ -19,4 +19,4 @@ and uses DMA to avoid blocking the M4's CPU.
 The DMX interface uses a [SparkFun ESP32 Thing Plus DMX to LED Shield](https://www.sparkfun.com/sparkfun-esp32-thing-plus-dmx-to-led-shield.html),
 which provides RS485 decoding as well as the electrical isolation that the DMX standard recommends. Unfortunately, this shield did
 not seem to work well with the Feather M4, so I added an ESP MCU to the project, which connects to the
-DMX shield and then forwards the DMX data to the Feather M4 via an i2c link.
+DMX shield and then forwards the DMX data to the Feather M4 via an [i<sup>2</sup>c](https://en.wikipedia.org/wiki/I%C2%B2C) link.
