@@ -20,3 +20,5 @@ The DMX interface uses a [SparkFun ESP32 Thing Plus DMX to LED Shield](https://w
 which provides RS485 decoding as well as the electrical isolation that the DMX standard recommends. Unfortunately, this shield did
 not seem to work well with the Feather M4, so I added an ESP MCU to the project, which connects to the
 DMX shield and then forwards the DMX data to the Feather M4 via an [i<sup>2</sup>c](https://en.wikipedia.org/wiki/I%C2%B2C) link.
+
+Aside from the animations themselves, most of the system is designed to be a generic DMX-compatible driver for large NeoPixel installations.
