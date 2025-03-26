@@ -18,7 +18,7 @@ and uses DMA to avoid blocking the M4's CPU.
 
 The DMX interface uses a [SparkFun ESP32 Thing Plus DMX to LED Shield](https://www.sparkfun.com/sparkfun-esp32-thing-plus-dmx-to-led-shield.html),
 which provides RS485 decoding as well as the electrical isolation that the DMX standard recommends. Unfortunately, this shield's library did not want
-to compile for the Feather M4, so I added an ESP MCU to the project, which connects to the
+to compile for the Feather M4, so I added an [Adafruit ESP32](https://www.adafruit.com/product/3405) to the project, which connects to the
 DMX shield and then forwards the DMX data to the Feather M4 via a secondary [i<sup>2</sup>c](https://en.wikipedia.org/wiki/I%C2%B2C) bus.
 I did not use the main i<sup>2</sup>c bus because I had problems getting the M4 to work as both a controller (of the OLED and GPIO/keypad extender)
 and peripheral (DMX data receiver from the ESP board) when using the default i<sup>2</sup>c bus/pins.
