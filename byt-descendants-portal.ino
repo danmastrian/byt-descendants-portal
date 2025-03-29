@@ -168,7 +168,7 @@ void loop()
   //Serial.println(elapsedUsec);
   fps = (double)1000000.0 / (double)elapsedUsec;
 
-  Serial.println(lastIsrUsec);
+  //Serial.println(lastIsrUsec);
 }
 
 void rainbow()
