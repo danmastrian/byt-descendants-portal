@@ -7,6 +7,7 @@
 #include "RenderController.h"
 #include <Wire.h>
 #include "wiring_private.h"
+#include "DmxData.h"
 
 #define STATIC_ASSERT(condition) typedef char p__LINE__[ (condition) ? 1 : -1];
 #define ASSERT_TYPE_SIZE(type, bytes) STATIC_ASSERT(sizeof(type) == (bytes))
@@ -29,8 +30,6 @@ void SERCOM4_3_Handler() { myWire.onService(); }
 
 // Global data
 double fps = 0.0;
-unsigned long lastDmxPacketReceivedMsec = 0;
-uint8_t dmxData[513] = { 0 };
 
 class DummyRenderProcessor : public RenderProcessor
 {
@@ -64,11 +63,14 @@ void DisplayTestPattern()
   strip.show();
 }
 
+volatile unsigned long lastIsrUsec = 0;
+
 // i2c ISR for DMX data coming from the other MCU
 void onReceive(int len) 
 {
+  //unsigned long isrStartUsec = micros();
+
   const int headerBytes = 3;
-  //Serial.printf("onReceive[%d]: ", len);
 
   uint8_t recvBuf[len];
   for (int i = 0; i < len; ++i)
@@ -76,13 +78,12 @@ void onReceive(int len)
     recvBuf[i] = myWire.read();
   }
 
-  // Read header
-  uint16_t startCh = (((uint16_t)recvBuf[0]) << 8) | recvBuf[1];
+  uint16_t startCh = (((uint16_t)recvBuf[0]) << 8) | (uint16_t)recvBuf[1];
   uint8_t chCount = recvBuf[2];
 
   if (len != chCount + headerBytes)
   {
-    Serial.printf("MALFORMED I2C PACKET: len = %d bytes, expected chCount = %d\n", len, chCount);
+    //Serial.printf("MALFORMED I2C PACKET: len = %d bytes, expected chCount = %u, startCh = %u\n", len, chCount, startCh);
     return;
   }
 
@@ -90,14 +91,36 @@ void onReceive(int len)
   
   for (uint8_t i = 0; i < chCount; ++i)
   {
-    dmxData[startCh + i] = recvBuf[headerBytes + i];
-    //Serial.printf("[%03d:%03d]", startCh + i, dmxData[startCh + i]);
+    DmxChannelData& ch = dmxData[startCh + i];
+    
+    if (ch.LastUpdatedMsec <= lastDmxUniverseUpdateCompletedMsec)
+    {
+      // Reduce the count of pending channels since the full DMX universe was updated
+      dmxChannelsPendingSinceLastCompleteUpdate--;
+    }
+
+    if (dmxChannelsPendingSinceLastCompleteUpdate == 0)
+    {
+      // All channels have been received
+      lastDmxUniverseUpdateCompletedMsec = lastDmxPacketReceivedMsec;
+      
+      // Reset the count of pending channels for the next cycle
+      dmxChannelsPendingSinceLastCompleteUpdate = DMX_UNIVERSE_SIZE;
+    }
+
+    ch.Value = recvBuf[headerBytes + i];
+    ch.LastUpdatedMsec = lastDmxPacketReceivedMsec;
   }
-  //Serial.println();
+
+  //unsigned long isrEndUsec = micros();
+
+  //lastIsrUsec = isrEndUsec - isrStartUsec;
 }
 
 void setup()
 {
+  memset(dmxData, 0, sizeof(dmxData));
+
   Serial.begin(115200);
   Serial.println("Serial comm init OK");
 
@@ -116,7 +139,7 @@ void setup()
 
   if (!InitKeypad())
   {
-    SystemPanic("Failed to init keypad");
+    SystemPanic("Keypad init failed");
   }
   StartupMessage("Keypad OK");
   
@@ -124,7 +147,7 @@ void setup()
   {
     SystemPanic("Config load failed");
   }
-  StartupMessage("Flash config OK");
+  StartupMessage("Config load OK");
 
   strip.begin();
   DisplayTestPattern();
@@ -144,6 +167,8 @@ void loop()
 
   //Serial.println(elapsedUsec);
   fps = (double)1000000.0 / (double)elapsedUsec;
+
+  Serial.println(lastIsrUsec);
 }
 
 void rainbow()

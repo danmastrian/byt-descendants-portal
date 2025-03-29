@@ -17,7 +17,7 @@ SystemConfiguration sysConfig;
 
 bool SystemConfiguration::InitializeStorage()
 {
-    StartupMessage("SD flash initializing...");
+    StartupMessage("SD flash init...");
 
     // Initialize flash library and check its chip ID.
     if (!flash.begin())
@@ -52,7 +52,7 @@ bool SystemConfiguration::InitializeStorage()
 
     if (!fatfs.exists(FILE_CONFIG_SYSCONFIG))
     {
-        StartupMessage("Configuration reset!");
+        StartupMessage("CONFIG RESET!");
         delay(10000);
 
         // Default settings

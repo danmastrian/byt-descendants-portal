@@ -1,6 +1,7 @@
 #include "UIController.h"
 #include "SystemConfiguration.h"
 #include "Constants.h"
+#include "DmxData.h"
 
 class UIStateDummy : public UIState
 {
@@ -51,9 +52,9 @@ public:
         display.println();
         display.print(F("New Value: "));
         display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.print(F(" "));
+        display.print(F(" < ")); // Wraparound supported
         display.print(newValue);
-        display.println(F(" "));
+        display.println(F(" > "));
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -125,9 +126,9 @@ public:
         display.println();
         display.print(F("New Start: "));
         display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.print(F(" "));
+        display.print(F(" < ")); // Wraparound supported
         display.print(newStartChannel);
-        display.println(F(" "));
+        display.println(F(" > "));
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -174,6 +175,10 @@ public:
 class UIStateConfigMode : public UIState
 {
 private:
+
+    const int MIN_MODE = 0;
+    const int MAX_MODE = 10;
+
     int newMode;
 
 public:
@@ -195,9 +200,10 @@ public:
         display.println();
         display.print(F("New: "));
         display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.print(F(" "));
+
+        display.print(newMode > MIN_MODE ? F(" < ") : F("   "));
         display.print(newMode);
-        display.println(F(" "));
+        display.println(newMode < MAX_MODE ? F(" > ") : F("   "));
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -208,7 +214,7 @@ public:
             return parent;
 
         case Right:
-            if (newMode < 10) // TODO
+            if (newMode < MAX_MODE)
             {
                 newMode++;
                 SetDirty();
@@ -216,7 +222,7 @@ public:
             break;
 
         case Left:
-            if (newMode > 0)
+            if (newMode > MIN_MODE)
             {
                 newMode--;
                 SetDirty();
@@ -232,9 +238,6 @@ public:
         return this;
     }
 };
-
-
-extern uint8_t dmxData[];
 
 class UIStateDmxDump : public UIState
 {
@@ -291,11 +294,11 @@ void UIStateDmxDump::Render()
     {
       if (ch + lineCount < startCh + chCount)
       {
-        display.printf("%3d = %3d | %3d = %3d\n", ch, dmxData[ch], ch + lineCount, dmxData[ch + lineCount]);
+        display.printf("%3d = %3d | %3d = %3d\n", ch, dmxData[ch].Value, ch + lineCount, dmxData[ch + lineCount].Value);
       }
       else
       {
-        display.printf("%3d = %3d |\n", ch, dmxData[ch]);
+        display.printf("%3d = %3d |\n", ch, dmxData[ch].Value);
       }
     }
 }
@@ -378,7 +381,11 @@ private:
     UIStateMenu *mainMenu;
     unsigned long lastUpdateMsec = 0;
     unsigned long lastDmxPacketMsec = 0;
+    unsigned long lastDmxUniverseMsec = 0;
     bool showDmxStatusGlyph = false;
+    bool showDmxUniverseStatusGlyph = false;
+    double dmxUniverseUpdateLatencyMsec = 0.0;
+    const double DmxUniverseUpdateLatencyMsecThreshold = 1000;
 
     const char *statusGlyphs = "|/-\\";
     int statusGlyphIndex = 0;
@@ -423,10 +430,9 @@ void UIStateMain::Render()
     display.println();
     display.println();
 
-    display.print(F("Mode 0"));
-    display.println();
-
-    display.print(F("Brightness "));
+    display.print(F("Mode "));
+    display.print(sysConfig.mode);
+    display.print(F(", Bright "));
     display.print(sysConfig.brightness);
     display.println();
 
@@ -436,19 +442,45 @@ void UIStateMain::Render()
       showDmxStatusGlyph = !showDmxStatusGlyph;
     }
 
-    display.print(F("DMX Ch "));
+    if (lastDmxUniverseMsec != lastDmxUniverseUpdateCompletedMsec)
+    {
+        lastDmxUniverseMsec = lastDmxUniverseUpdateCompletedMsec;
+        showDmxUniverseStatusGlyph = !showDmxUniverseStatusGlyph;
+    }
+
+    const double latencyUpdateWeight = 0.01;
+    dmxUniverseUpdateLatencyMsec = 
+        ((1.0 - latencyUpdateWeight) * dmxUniverseUpdateLatencyMsec) +
+        (latencyUpdateWeight * (double)(millis() - lastDmxUniverseUpdateCompletedMsec));
+
+    // Clamp to threshold to avoid spiking on first update
+    dmxUniverseUpdateLatencyMsec = min(
+        dmxUniverseUpdateLatencyMsec,
+        DmxUniverseUpdateLatencyMsecThreshold);
+
+    display.print(F("DMX Ch  "));
     display.print(sysConfig.dmxStartChannel);
     display.print(F("-"));
     display.print(sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1);
-    if (showDmxStatusGlyph)
-    {
-      display.print(" *");
-    }
+    display.print(showDmxStatusGlyph ? " *" : "  ");
+    display.print(showDmxUniverseStatusGlyph ? " **" : "   ");
     display.println();
 
+    display.print(F("DMX Lag "));
+    if (dmxUniverseUpdateLatencyMsec >= DmxUniverseUpdateLatencyMsecThreshold)
+    {
+        display.println(F("[???]"));
+    }
+    else
+    {
+        display.print((unsigned long)dmxUniverseUpdateLatencyMsec);
+        display.println(F(" ms"));
+    }
+
+    display.print(F("Render  "));
     display.print((int)fps);
     display.println(F(" fps"));
-
+    
     display.println();
     display.println(F("Press OK for menu"));
 }
