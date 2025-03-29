@@ -430,10 +430,7 @@ void UIStateMain::Render()
     display.println();
     display.println();
 
-    display.print(F("Mode "));
-    display.print(sysConfig.mode);
-    display.print(F(", Bright "));
-    display.print(sysConfig.brightness);
+    display.printf("Mode %2u  Bright %3u", sysConfig.mode, sysConfig.brightness);
     display.println();
 
     if (lastDmxPacketMsec != lastDmxPacketReceivedMsec)
@@ -458,28 +455,28 @@ void UIStateMain::Render()
         dmxUniverseUpdateLatencyMsec,
         DmxUniverseUpdateLatencyMsecThreshold);
 
-    display.print(F("DMX Ch  "));
-    display.print(sysConfig.dmxStartChannel);
-    display.print(F("-"));
-    display.print(sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1);
-    display.print(showDmxStatusGlyph ? " *" : "  ");
-    display.print(showDmxUniverseStatusGlyph ? " **" : "   ");
+    display.printf(
+      "DMX Ch   %3u - %3u %s",
+      sysConfig.dmxStartChannel,
+      sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1,
+      showDmxUniverseStatusGlyph ? "*" : " "
+      );
+
     display.println();
 
-    display.print(F("DMX Lag "));
+    display.print(F("DMX Lag  "));
     if (dmxUniverseUpdateLatencyMsec >= DmxUniverseUpdateLatencyMsecThreshold)
     {
         display.println(F("[???]"));
     }
     else
     {
-        display.print((unsigned long)dmxUniverseUpdateLatencyMsec);
-        display.println(F(" ms"));
+        display.printf("%3u ms", (unsigned long)dmxUniverseUpdateLatencyMsec);
+        display.println();
     }
 
-    display.print(F("Render  "));
-    display.print((int)fps);
-    display.println(F(" fps"));
+    display.printf("Render   %3u fps", (unsigned int)fps);
+    display.println();
     
     display.println();
     display.println(F("Press OK for menu"));
