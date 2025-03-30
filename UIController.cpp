@@ -425,12 +425,14 @@ void UIStateMain::Tick()
 
 void UIStateMain::Render()
 {
-    display.print(F("SYSTEM READY "));
-    display.print(statusGlyphs[statusGlyphIndex]);
+    display.printf(
+      "READY %c MODE %u",
+      statusGlyphs[statusGlyphIndex],
+      sysConfig.mode);
     display.println();
     display.println();
 
-    display.printf("Mode %2u  Bright %3u", sysConfig.mode, sysConfig.brightness);
+    display.printf("Bright   %3u", sysConfig.brightness);
     display.println();
 
     if (lastDmxPacketMsec != lastDmxPacketReceivedMsec)
@@ -471,11 +473,12 @@ void UIStateMain::Render()
     }
     else
     {
-        display.printf("%3u ms", (unsigned long)dmxUniverseUpdateLatencyMsec);
+        // Round the average latency to the nearest millisecond
+        display.printf("%3u ms", (unsigned long)(dmxUniverseUpdateLatencyMsec + 0.5));
         display.println();
     }
 
-    display.printf("Render   %3u fps", (unsigned int)fps);
+    display.printf("Render   %3u fps", (unsigned int)(fps + 0.5));
     display.println();
     
     display.println();
