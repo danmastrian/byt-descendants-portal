@@ -44,8 +44,9 @@ char GetKeyPressEvent()
 
   uint8_t row = k / 10;
   uint8_t col = k % 10;
+  char keyChar = keymap[row][col];
 
-  Serial.printf("Pressed row %u col %u\n", row, col);
+  Serial.printf("Pressed row %u col %u = '%c'\n", row, col, keyChar);
 
-  return keymap[row][col];
+  return keyChar;
 }

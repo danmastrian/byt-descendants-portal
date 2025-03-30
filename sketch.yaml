@@ -15,6 +15,7 @@ profiles:
       - Adafruit NeoPixel (1.12.0)
       - SdFat - Adafruit Fork (2.2.3)
       - Adafruit SPIFlash (5.0.1)
+      - CRC (1.0.3)
     port: COM5
 
 default_profile: feather_m4

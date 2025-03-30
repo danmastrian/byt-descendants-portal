@@ -8,6 +8,7 @@
 #include <Wire.h>
 #include "wiring_private.h"
 #include "DmxData.h"
+#include <CRC32.h>
 
 #define STATIC_ASSERT(condition) typedef char p__LINE__[ (condition) ? 1 : -1];
 #define ASSERT_TYPE_SIZE(type, bytes) STATIC_ASSERT(sizeof(type) == (bytes))
@@ -16,7 +17,11 @@ ASSERT_TYPE_SIZE(long, 4)
 ASSERT_TYPE_SIZE(int, 4)
 ASSERT_TYPE_SIZE(uint8_t, 1)
 
-#define I2C_DEV_ADDR 0x55
+// 2 bytes for start channel, 1 byte for channel count
+const int I2C_PACKET_METADATA_BYTES = sizeof(uint16_t) + sizeof(uint8_t);
+
+const uint8_t I2C_DEV_ADDR = 0x55;
+
 #define DMX_INPUT_PIN_SDA A2
 #define DMX_INPUT_PIN_SCK A3
 
@@ -64,13 +69,14 @@ void DisplayTestPattern()
 }
 
 volatile unsigned long lastIsrUsec = 0;
+CRC32 crc;
 
 // i2c ISR for DMX data coming from the other MCU
 void onReceive(int len) 
 {
   //unsigned long isrStartUsec = micros();
 
-  const int headerBytes = 3;
+  const int headerBytes = I2C_PACKET_METADATA_BYTES + sizeof(crc_size_t);
 
   uint8_t recvBuf[len];
   for (int i = 0; i < len; ++i)
@@ -83,8 +89,24 @@ void onReceive(int len)
 
   if (len != chCount + headerBytes)
   {
-    //Serial.printf("MALFORMED I2C PACKET: len = %d bytes, expected chCount = %u, startCh = %u\n", len, chCount, startCh);
+    Serial.printf("MALFORMED I2C PACKET: len = %d bytes, expected chCount = %u, startCh = %u\n", len, chCount, startCh);
     return;
+  }
+
+  crc.reset();
+  crc.add(recvBuf, len - sizeof(crc_size_t)); // Exclude CRC bytes
+  crc_size_t crcValueActual = crc.calc();
+  
+  crc_size_t crcValueExpected;
+  memcpy(
+    &crcValueExpected,
+    recvBuf + len - sizeof(crc_size_t), // Get the last 4 bytes which is the CRC32 value
+    sizeof(crc_size_t));
+
+  if (crcValueActual != crcValueExpected)
+  {
+    Serial.printf("CRC MISMATCH: Actual CRC = %08X, Expected CRC = %08X\n", crcValueActual, crcValueExpected);
+    return; // Ignore this packet since the CRC doesn't match
   }
 
   lastDmxPacketReceivedMsec = millis();
@@ -108,7 +130,7 @@ void onReceive(int len)
       dmxChannelsPendingSinceLastCompleteUpdate = DMX_UNIVERSE_SIZE;
     }
 
-    ch.Value = recvBuf[headerBytes + i];
+    ch.Value = recvBuf[I2C_PACKET_METADATA_BYTES + i];
     ch.LastUpdatedMsec = lastDmxPacketReceivedMsec;
   }
 
