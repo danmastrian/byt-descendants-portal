@@ -50,8 +50,9 @@ public:
         display.print(F("Current Value: "));
         display.println(sysConfig.brightness);
         display.println();
+        
         display.print(F("New Value: "));
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        SetTextColor(true); // Inverted
         display.print(F(" < ")); // Wraparound supported
         display.print(newValue);
         display.println(F(" > "));
@@ -124,8 +125,9 @@ public:
         display.print(F("-"));
         display.println(sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1);
         display.println();
+
         display.print(F("New Start: "));
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        SetTextColor(true); // Inverted
         display.print(F(" < ")); // Wraparound supported
         display.print(newStartChannel);
         display.println(F(" > "));
@@ -198,9 +200,9 @@ public:
         display.print(F("Current: "));
         display.println(sysConfig.mode);
         display.println();
-        display.print(F("New: "));
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
 
+        display.print(F("New: "));
+        SetTextColor(true); // Inverted
         display.print(newMode > MIN_MODE ? F(" < ") : F("   "));
         display.print(newMode);
         display.println(newMode < MAX_MODE ? F(" > ") : F("   "));
@@ -336,7 +338,7 @@ public:
         display.println(F("Press BACK to exit"));
         display.println();
         
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        SetTextColor(true); // Inverted
         display.print(currentIndex > 0 ? F(" < ") : F("   "));
         display.print(F(menuItems[currentIndex]->GetName()));
         display.println(currentIndex < (menuItemCount - 1) ? F(" > ") : F("   "));
@@ -387,9 +389,9 @@ private:
 
     UIStateMenu *mainMenu;
     unsigned long lastUpdateMsec = 0;
-    unsigned long lastDmxPacketMsec = 0;
+    //unsigned long lastDmxPacketMsec = 0;
     unsigned long lastDmxUniverseMsec = 0;
-    bool showDmxStatusGlyph = false;
+    //bool showDmxStatusGlyph = false;
     bool showDmxUniverseStatusGlyph = false;
     double dmxUniverseUpdateLatencyMsec = 0.0;
     int statusGlyphIndex = 0;
@@ -437,11 +439,13 @@ void UIStateMain::Render()
     display.printf("Bright   %3u", sysConfig.brightness);
     display.println();
 
+    /*
     if (lastDmxPacketMsec != lastDmxPacketReceivedMsec)
     {
       lastDmxPacketMsec = lastDmxPacketReceivedMsec;
       showDmxStatusGlyph = !showDmxStatusGlyph;
     }
+    */
 
     if (lastDmxUniverseMsec != lastDmxUniverseUpdateCompletedMsec)
     {
@@ -509,7 +513,7 @@ void UIState::UpdateDisplay()
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
-    display.setTextColor(SSD1306_WHITE);
+    SetTextColor();;
     Render();
     display.display();
 }

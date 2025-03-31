@@ -16,10 +16,12 @@ enum UIButton
 class UIState
 {
 private:
+
     const char *name;
     bool isDirty;
 
 protected:
+
     UIState *parent = nullptr;
 
     UIState(const char *name)
@@ -28,7 +30,22 @@ protected:
     {
     }
 
+    void SetTextColor(bool inverted = false)
+    {
+        if (inverted)
+        {
+            display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+        }
+        else
+        {
+            display.setTextColor(SSD1306_WHITE);
+        }
+    }
+
+    virtual void Render() = 0;
+
 public:
+
     const char *GetName()
     {
         return name;
@@ -40,8 +57,6 @@ public:
     {
         isDirty = true;
     }
-
-    virtual void Render() = 0;
 
     virtual UIState *HandleButtonPress(UIButton button) = 0;
 
