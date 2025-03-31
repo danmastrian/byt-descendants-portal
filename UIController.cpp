@@ -378,6 +378,13 @@ public:
 class UIStateMain : public UIState
 {
 private:
+
+    const double DmxUniverseUpdateLatencyMsecThreshold = 1000;
+    const unsigned long DisplayRefreshPeriodMsec = 50UL;
+    const int MenuItemCount = 4; // Yuck
+    const char* StatusGlyphs = "|/-\\";
+    const size_t StatusGlyphsLength = 4; // Yuck
+
     UIStateMenu *mainMenu;
     unsigned long lastUpdateMsec = 0;
     unsigned long lastDmxPacketMsec = 0;
@@ -385,9 +392,6 @@ private:
     bool showDmxStatusGlyph = false;
     bool showDmxUniverseStatusGlyph = false;
     double dmxUniverseUpdateLatencyMsec = 0.0;
-    const double DmxUniverseUpdateLatencyMsecThreshold = 1000;
-
-    const char *statusGlyphs = "|/-\\";
     int statusGlyphIndex = 0;
 
 public:
@@ -397,27 +401,25 @@ public:
     virtual UIState* HandleButtonPress(UIButton button);
 };
 
-const int menuItemCount = 4;
-
 UIStateMain::UIStateMain()
     : UIState("MAIN")
 {
     mainMenu = new UIStateMenu(
         "MAIN MENU",
-        new UIState *[menuItemCount] {
+        new UIState *[MenuItemCount] {
             new UIStateDmxDump(),
             new UIStateConfigDmxChannel(),
             new UIStateConfigBrightness(),
             new UIStateConfigMode(),
         },
-        menuItemCount);
+        MenuItemCount);
 }
 
 void UIStateMain::Tick()
 {
-    if ((millis() - lastUpdateMsec) > 50UL)
+    if ((millis() - lastUpdateMsec) > DisplayRefreshPeriodMsec)
     {
-        statusGlyphIndex = (statusGlyphIndex + 1) % 4;
+        statusGlyphIndex = (statusGlyphIndex + 1) % StatusGlyphsLength;
         SetDirty();
         lastUpdateMsec = millis();
     }
@@ -427,7 +429,7 @@ void UIStateMain::Render()
 {
     display.printf(
       "READY %c MODE %u",
-      statusGlyphs[statusGlyphIndex],
+      StatusGlyphs[statusGlyphIndex],
       sysConfig.mode);
     display.println();
     display.println();
@@ -478,6 +480,7 @@ void UIStateMain::Render()
         display.println();
     }
 
+    // Round frames per second
     display.printf("Render   %3u fps", (unsigned int)(fps + 0.5));
     display.println();
     
