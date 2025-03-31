@@ -25,3 +25,5 @@ I did not use the main i<sup>2</sup>c bus because I had problems getting the M4 
 and peripheral (DMX data receiver from the ESP board) when using the default i<sup>2</sup>c bus/pins.
 
 Aside from the animations themselves, most of the system is designed to be a generic DMX-compatible driver for large NeoPixel installations.
+
+Currently, DMX universe refresh latency is ~40 msec, and render loop frequency is ~80 fps.
