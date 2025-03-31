@@ -48,5 +48,10 @@ As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 - Ammeter (contactless)
 - Diode?
 
+## Goals
+
+- 30-60+ frames/sec
+- DMX latency < 50 msec
+
 
 
