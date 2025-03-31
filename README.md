@@ -23,6 +23,9 @@ DMX shield and then forwards the DMX data to the Feather M4 via a secondary [i<s
 See https://github.com/danmastrian/byt-descendants-portal-dmx-peripheral for the code for the auxiliary MCU.
 I did not use the main i<sup>2</sup>c bus because I had problems getting the M4 to work as both a controller (of the OLED and GPIO/keypad extender)
 and peripheral (DMX data receiver from the ESP board) when using the default i<sup>2</sup>c bus/pins.
+I had to add external pullup resistors to this bus, and initially I used 4.7Kohm resistors.
+I saw a high rate of i2c packet truncation, and after some research I decided to try smaller resistors.
+As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 
 Aside from the animations themselves, most of the system is designed to be a generic DMX-compatible driver for large NeoPixel installations.
 
