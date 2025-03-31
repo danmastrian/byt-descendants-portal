@@ -8,7 +8,9 @@ The LEDs are arranged in two identical concentric circles, positioned vertically
 
 The system includes a small [OLED display](https://www.amazon.com/dp/B08CDN5PSJ) and [4-button keypad](https://www.adafruit.com/product/1332) which is used to display status and set configuration values such as DMX channel range and maximum brightness.
 
-The code was written for the [Adafruit Feather M4 Express (SAMD51)](https://www.adafruit.com/product/3857) board.
+## Control System
+
+The code in this repo was written for the [Adafruit Feather M4 Express (SAMD51)](https://www.adafruit.com/product/3857) board.
 
 Keypad input is handled by an [Adafruit TCA8418](https://www.adafruit.com/product/4918), to reduce the number of GPIO pins used on the M4,
 because specific pins are needed for the 8 LED data outputs.
@@ -30,3 +32,10 @@ As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 Aside from the animations themselves, most of the system is designed to be a generic DMX-compatible driver for large NeoPixel installations.
 
 Currently, DMX universe refresh latency is ~40 msec, and render loop frequency is ~80 fps.
+
+## Power Supply
+
+Out 5V 100A
+Bus Bars
+Ammeter
+
