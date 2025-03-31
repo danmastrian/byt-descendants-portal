@@ -18,8 +18,8 @@ ASSERT_TYPE_SIZE(int, 4)
 ASSERT_TYPE_SIZE(uint8_t, 1)
 
 // 2 bytes for start channel, 1 byte for channel count
-const int I2C_PACKET_METADATA_BYTES = sizeof(uint16_t) + sizeof(uint8_t);
-
+const int I2C_PACKET_HEADER_BYTES = sizeof(uint16_t) + sizeof(uint8_t);
+const int I2C_PACKET_METADATA_BYTES = I2C_PACKET_HEADER_BYTES + sizeof(crc_size_t);
 const uint8_t I2C_DEV_ADDR = 0x55;
 
 #define DMX_INPUT_PIN_SDA A2
@@ -33,9 +33,6 @@ void SERCOM4_1_Handler() { myWire.onService(); }
 void SERCOM4_2_Handler() { myWire.onService(); }
 void SERCOM4_3_Handler() { myWire.onService(); }
 
-// Global data
-double fps = 0.0;
-
 class DummyRenderProcessor : public RenderProcessor
 {
 public:
@@ -46,8 +43,12 @@ public:
   }
 };
 
+// Global data
+double fps = 0.0;
 DummyRenderProcessor drp;
 RenderController renderer(&drp);
+volatile unsigned long lastIsrUsec = 0;
+CRC32 crc;
 
 void DisplayTestPattern()
 {
@@ -68,15 +69,10 @@ void DisplayTestPattern()
   strip.show();
 }
 
-volatile unsigned long lastIsrUsec = 0;
-CRC32 crc;
-
 // i2c ISR for DMX data coming from the other MCU
 void onReceive(int len) 
 {
   //unsigned long isrStartUsec = micros();
-
-  const int headerBytes = I2C_PACKET_METADATA_BYTES + sizeof(crc_size_t);
 
   uint8_t recvBuf[len];
   for (int i = 0; i < len; ++i)
@@ -87,7 +83,7 @@ void onReceive(int len)
   uint16_t startCh = (((uint16_t)recvBuf[0]) << 8) | (uint16_t)recvBuf[1];
   uint8_t chCount = recvBuf[2];
 
-  if (len != chCount + headerBytes)
+  if (len != chCount + I2C_PACKET_METADATA_BYTES)
   {
     Serial.printf("MALFORMED I2C PACKET: len = %d bytes, expected chCount = %u, startCh = %u\n", len, chCount, startCh);
     return;
@@ -130,7 +126,7 @@ void onReceive(int len)
       dmxChannelsPendingSinceLastCompleteUpdate = DMX_UNIVERSE_SIZE;
     }
 
-    ch.Value = recvBuf[I2C_PACKET_METADATA_BYTES + i];
+    ch.Value = recvBuf[I2C_PACKET_HEADER_BYTES + i];
     ch.LastUpdatedMsec = lastDmxPacketReceivedMsec;
   }
 

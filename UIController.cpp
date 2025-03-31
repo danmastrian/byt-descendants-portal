@@ -389,11 +389,15 @@ private:
 
     UIStateMenu *mainMenu;
     unsigned long lastUpdateMsec = 0;
+
     //unsigned long lastDmxPacketMsec = 0;
-    unsigned long lastDmxUniverseMsec = 0;
     //bool showDmxStatusGlyph = false;
+
+    unsigned long lastDmxUniverseMsec = 0;
     bool showDmxUniverseStatusGlyph = false;
-    double dmxUniverseUpdateLatencyMsec = 0.0;
+    // Duration in msec since last complete update of the DMX universe
+    double dmxUniverseUpdateLatencyMsec = 40.0; // Default to the expected latency
+
     int statusGlyphIndex = 0;
 
 public:
@@ -430,13 +434,17 @@ void UIStateMain::Tick()
 void UIStateMain::Render()
 {
     display.printf(
-      "READY %c MODE %u",
+      "READY %c Mode %u",
       StatusGlyphs[statusGlyphIndex],
       sysConfig.mode);
     display.println();
     display.println();
 
-    display.printf("Bright   %3u", sysConfig.brightness);
+    display.printf(
+        " Bright   %3u (%u%%)",
+        sysConfig.brightness,
+        (unsigned long)(sysConfig.brightness) * 100UL / 255UL // Calculate percentage (0-100%)
+        );
     display.println();
 
     /*
@@ -464,7 +472,7 @@ void UIStateMain::Render()
         DmxUniverseUpdateLatencyMsecThreshold);
 
     display.printf(
-      "DMX Ch   %3u - %3u %s",
+      " DMX Ch   %3u - %3u %s",
       sysConfig.dmxStartChannel,
       sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1,
       showDmxUniverseStatusGlyph ? "*" : " "
@@ -472,7 +480,7 @@ void UIStateMain::Render()
 
     display.println();
 
-    display.print(F("DMX Lag  "));
+    display.print(F(" DMX Lag  "));
     if (dmxUniverseUpdateLatencyMsec >= DmxUniverseUpdateLatencyMsecThreshold)
     {
         display.println(F("[???]"));
@@ -485,7 +493,7 @@ void UIStateMain::Render()
     }
 
     // Round frames per second
-    display.printf("Render   %3u fps", (unsigned int)(fps + 0.5));
+    display.printf(" Render   %3u fps", (unsigned int)(fps + 0.5));
     display.println();
     
     display.println();
