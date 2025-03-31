@@ -43,7 +43,10 @@ As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 
 ## Power Supply
 
-Out 5V 100A
-Bus Bars
-Ammeter
+- PSU MeanWell 5V 100A
+- Bus Bars
+- Ammeter (contactless)
+- Diode?
+
+
 
