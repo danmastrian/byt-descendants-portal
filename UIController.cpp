@@ -437,8 +437,12 @@ void UIStateMain::Tick()
 
 void UIStateMain::Render()
 {
+    SetTextColor(true); // Inverted
+    display.printf(" READY ");
+
+    SetTextColor(false);
     display.printf(
-      "READY %c Mode %u",
+      " %c Mode %u",
       StatusGlyphs[statusGlyphIndex],
       sysConfig.mode);
     display.println();
