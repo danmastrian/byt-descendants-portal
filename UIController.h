@@ -86,7 +86,7 @@ private:
     const unsigned long KEY_HOLD_THRESHOLD_MSEC = 500UL;
 
     // Time between repeat events for a key that is being held down
-    const unsigned long KEY_REPEAT_PERIOD_MSEC = 25UL;
+    const unsigned long KEY_REPEAT_PERIOD_MSEC = 20UL;
 
     // The current state of the UI
     UIState *state;
