@@ -56,6 +56,14 @@ public:
         display.print(F(" < ")); // Wraparound supported
         display.print(newValue);
         display.println(F(" > "));
+
+        SetTextColor();
+        display.println();
+        display.print(F("Press "));
+        SetTextColor(true); // Inverted
+        display.print(F(" OK "));
+        SetTextColor();
+        display.println(F(" to save"));
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -131,6 +139,14 @@ public:
         display.print(F(" < ")); // Wraparound supported
         display.print(newStartChannel);
         display.println(F(" > "));
+
+        SetTextColor();
+        display.println();
+        display.print(F("Press "));
+        SetTextColor(true); // Inverted
+        display.print(F(" OK "));
+        SetTextColor();
+        display.println(F(" to save"));
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -197,15 +213,23 @@ public:
     virtual void Render()
     {
         display.println(F(GetName()));
-        display.print(F("Current: "));
+        display.print(F("Current Mode: "));
         display.println(sysConfig.mode);
         display.println();
 
-        display.print(F("New: "));
+        display.print(F("New Mode: "));
         SetTextColor(true); // Inverted
         display.print(newMode > MIN_MODE ? F(" < ") : F("   "));
         display.print(newMode);
         display.println(newMode < MAX_MODE ? F(" > ") : F("   "));
+
+        SetTextColor();
+        display.println();
+        display.print(F("Press "));
+        SetTextColor(true); // Inverted
+        display.print(F(" OK "));
+        SetTextColor();
+        display.println(F(" to save"));
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -285,7 +309,11 @@ void UIStateDmxDump::Render()
     }
     display.println();
 
-    display.println(F("Press BACK to exit"));
+    display.print(F("Press "));
+    SetTextColor(true); // Inverted
+    display.print(F(" BACK "));
+    SetTextColor();
+    display.println(F(" to exit"));
     display.println();
 
     uint16_t startCh = sysConfig.dmxStartChannel;
@@ -335,7 +363,11 @@ public:
     virtual void Render()
     {
         display.println(F(GetName()));
-        display.println(F("Press BACK to exit"));
+        display.print(F("Press "));
+        SetTextColor(true); // Inverted
+        display.print(F(" BACK "));
+        SetTextColor();
+        display.println(F(" to exit"));
         display.println();
         
         SetTextColor(true); // Inverted
@@ -505,7 +537,11 @@ void UIStateMain::Render()
     display.println();
     
     display.println();
-    display.println(F("Press OK for menu"));
+    display.print(F("Press "));
+    SetTextColor(true); // Inverted
+    display.print(F(" OK "));
+    SetTextColor();
+    display.println(F(" for menu"));
 }
 
 UIState* UIStateMain::HandleButtonPress(UIButton button)
