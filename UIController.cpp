@@ -529,7 +529,7 @@ void UIState::UpdateDisplay()
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
-    SetTextColor();;
+    SetTextColor();
     Render();
     display.display();
 }
