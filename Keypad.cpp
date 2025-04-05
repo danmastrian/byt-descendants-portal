@@ -23,22 +23,17 @@ bool InitKeypad()
   return true;
 }
 
-char GetKeyPressEvent()
+KeypadEvent GetKeyPressEvent()
 {
   if (customKeypad.available() == 0)
   {
-    return 0;
+    return KeypadEvent{0, false};
   }
 
   int k = customKeypad.getEvent();
-  
-  bool pressed = k & 0x80;
-  if (!pressed)
-  {
-    // Only emit an event when the key is first pressed
-    return 0;
-  }
 
+  bool pressed = k & 0x80;
+  
   k &= 0x7F;
   k--;
 
@@ -46,7 +41,7 @@ char GetKeyPressEvent()
   uint8_t col = k % 10;
   char keyChar = keymap[row][col];
 
-  Serial.printf("Pressed row %u col %u = '%c'\n", row, col, keyChar);
+  Serial.printf("%s row %u col %u = '%c'\n", pressed ? "Pressed" : "Released", row, col, keyChar);
 
-  return keyChar;
+  return KeypadEvent{keyChar, pressed};
 }

@@ -122,7 +122,7 @@ public:
         display.println(F(GetName()));
         display.print(F("Current: "));
         display.print(sysConfig.dmxStartChannel);
-        display.print(F("-"));
+        display.print(F(" - "));
         display.println(sysConfig.dmxStartChannel + sysConfig.DmxChannelCount - 1);
         display.println();
 
@@ -381,7 +381,10 @@ class UIStateMain : public UIState
 {
 private:
 
+    // Consider the DMX latency to be 'unknown' if it exceeds this threshold
     const double DmxUniverseUpdateLatencyMsecThreshold = 1000;
+
+    // How often to refresh the display in msec
     const unsigned long DisplayRefreshPeriodMsec = 50UL;
     const int MenuItemCount = 4; // Yuck
     const char* StatusGlyphs = "|/-\\";
@@ -395,6 +398,7 @@ private:
 
     unsigned long lastDmxUniverseMsec = 0;
     bool showDmxUniverseStatusGlyph = false;
+
     // Duration in msec since last complete update of the DMX universe
     double dmxUniverseUpdateLatencyMsec = 40.0; // Default to the expected latency
 
@@ -483,7 +487,7 @@ void UIStateMain::Render()
     display.print(F(" DMX Lag  "));
     if (dmxUniverseUpdateLatencyMsec >= DmxUniverseUpdateLatencyMsecThreshold)
     {
-        display.println(F("[???]"));
+        display.println(F("NO SIGNAL"));
     }
     else
     {
@@ -539,7 +543,7 @@ UIButton UIController::TranslateKey(char key)
     case '4':
         return UIButton::OK;
     default:
-        return UIButton::Back; // should never happen
+        return UIButton::None; // should never happen
     }
 }
 
@@ -553,16 +557,54 @@ UIController::UIController(
 
 void UIController::Process()
 {
-    char key = GetKeyPressEvent();
-    if (key != 0)
+    const unsigned long now = millis();
+
+    UIState *newState = nullptr;
+
+    KeypadEvent event = GetKeyPressEvent();
+    if (event.KeyCode != 0)
     {
-      UIState *newState = state->HandleButtonPress(TranslateKey(key));
-      if (newState != state)
-      {
-          newState->Activate();
-          newState->SetDirty();
-          state = newState;
-      }
+        // An event has occurred
+        if (event.IsPressed)
+        {
+            keyPressedAtMsec = now;
+            currentKeyPressed = event.KeyCode;
+            isKeyHeld = false;
+
+            newState = state->HandleButtonPress(TranslateKey(event.KeyCode));
+        }
+        else
+        {
+            keyPressedAtMsec = 0;
+            currentKeyPressed = 0;
+            isKeyHeld = false;
+        }
+    }
+    else if (currentKeyPressed != 0)
+    {
+        // No new event, but a key is still pressed
+        UIButton button = TranslateKey(currentKeyPressed);
+
+        // Only support repeat for left/right buttons
+        if (button == UIButton::Left || button == UIButton::Right)
+        {
+            unsigned long msecSinceLastEvent = now - keyPressedAtMsec;
+            unsigned long msecThreshold = isKeyHeld ? KEY_REPEAT_PERIOD_MSEC : KEY_HOLD_THRESHOLD_MSEC;
+            
+            if (msecSinceLastEvent >= msecThreshold)
+            {
+                newState = state->HandleButtonPress(button);
+                keyPressedAtMsec = now; // Update the key pressed time to now
+                isKeyHeld = true; // Repeat events will be sent more frequently
+            }
+        }
+    }
+
+    if (newState && (newState != state))
+    {
+        newState->Activate();
+        newState->SetDirty();
+        state = newState;
     }
 
     state->Tick();

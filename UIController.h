@@ -7,6 +7,7 @@ extern double fps;
 
 enum UIButton
 {
+    None,
     Back,
     Left,
     Right,
@@ -80,7 +81,24 @@ protected:
     Adafruit_SSD1306 &display;
 
 private:
+
+    // Minimum time to hold a key before it is considered a long press (hold)
+    const unsigned long KEY_HOLD_THRESHOLD_MSEC = 500UL;
+
+    // Time between repeat events for a key that is being held down
+    const unsigned long KEY_REPEAT_PERIOD_MSEC = 25UL;
+
+    // The current state of the UI
     UIState *state;
+
+    // The time of the last key press event
+    unsigned long keyPressedAtMsec = 0;
+
+    // The key that is currently pressed
+    char currentKeyPressed = 0;
+
+    // Whether the current key is being held down (for repeat events)
+    bool isKeyHeld = false;
 
     UIButton TranslateKey(char key);
 

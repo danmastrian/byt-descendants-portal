@@ -8,5 +8,11 @@
 
 extern Adafruit_TCA8418 customKeypad;
 
+typedef struct
+{
+    char KeyCode;
+    bool IsPressed;
+} KeypadEvent;
+
 bool InitKeypad();
-char GetKeyPressEvent();
+KeypadEvent GetKeyPressEvent();
