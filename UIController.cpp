@@ -3,9 +3,6 @@
 #include "Constants.h"
 #include "DmxData.h"
 
-// TODO: Persist the lock state in flash storage
-bool g_IsInterfaceLocked = false;
-
 class UIStateDummy : public UIState
 {
 public:
@@ -235,7 +232,8 @@ public:
             return parent;
 
         case OK:
-            g_IsInterfaceLocked = true;
+            sysConfig.isLocked = true;
+            sysConfig.Save();
             return homeState;
         }
 
@@ -248,12 +246,19 @@ class UIStateDisableLock : public UIState
 private:
 
     static const int CodeLength = 3;
+    const char* UnlockCode = "425"; // TODO: Make this configurable
+    static const char UnspecifiedCodeChar = '_';
 
     UIState* homeState;
-    char code[CodeLength + 1] = "___";
+    char code[CodeLength];
     int selectedDigit = 0;
     int codeIndex = 0;
-    const char* UnlockCode = "425";
+
+    void ResetCode()
+    {
+        codeIndex = 0;
+        memset(code, UnspecifiedCodeChar, CodeLength);
+    }
 
 public:
 
@@ -266,17 +271,17 @@ public:
     virtual void Activate()
     {
         selectedDigit = 0;
-        codeIndex = 0;
-        memset(code, '_', CodeLength);
+        ResetCode();
     }
 
     virtual void Render()
     {
         display.println(F(GetName()));
-        display.println(F("Enter code to unlock:"));
+        display.println(F("Enter code:"));
         display.println();
-        display.println();
+        
         display.printf("     [%c] [%c] [%c]\n", code[0], code[1], code[2]);
+        display.println();
 
         display.println();
         display.print(F("   "));
@@ -313,14 +318,14 @@ public:
                     if (!strcmp(code, UnlockCode))
                     {
                         // Correct code entered, unlock the interface
-                        g_IsInterfaceLocked = false;
+                        sysConfig.isLocked = false;
+                        sysConfig.Save();
                         return homeState;
                     }
                     else
                     {
                         // Incorrect code entered, reset the code
-                        codeIndex = 0;
-                        memset(code, '_', CodeLength);
+                        ResetCode();
                     }
                 }
 
@@ -480,11 +485,11 @@ void UIStateDmxDump::Render()
       lastDmxPacketMsec = lastDmxPacketReceivedMsec;
       showDmxStatusGlyph = !showDmxStatusGlyph;
     }
-    if (showDmxStatusGlyph)
-    {
-      display.print(" *");
-    }
-    display.println();
+
+    display.printf(
+        " %c %s\n",
+        showDmxStatusGlyph ? '*' : ' ',
+        page == 0 ? "(THIS DEV)" : "");
 
     display.print(F("Press "));
     SetTextColor(true); // Inverted
@@ -700,7 +705,7 @@ void UIStateMain::Render()
       " %c Mode %u %s",
       StatusGlyphs[statusGlyphIndex],
       sysConfig.mode,
-      g_IsInterfaceLocked ? "LOCK" : "");
+      sysConfig.isLocked ? "LOCK" : "");
     display.println();
     display.println();
 
@@ -772,7 +777,7 @@ UIState* UIStateMain::HandleButtonPress(UIButton button)
 {
     if (button == OK)
     {
-        if (g_IsInterfaceLocked)
+        if (sysConfig.isLocked)
         {
             unlockScreen->SetParent(this);
             return unlockScreen;

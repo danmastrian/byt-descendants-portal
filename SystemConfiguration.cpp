@@ -13,6 +13,8 @@ FatVolume fatfs;
 #define DIR_CONFIG "/config"
 #define FILE_CONFIG_SYSCONFIG "/config/sysconfig.bin"
 
+// #define STRICT_CONFIG_VALIDATION
+
 SystemConfiguration sysConfig;
 
 bool SystemConfiguration::InitializeStorage()
@@ -78,18 +80,23 @@ bool SystemConfiguration::InitializeStorage()
     // using the serial class.  See SD library File class for more documentation:
     //   https://www.arduino.cc/en/reference/SD
 
-    PersistentConfigData loadedConfig;
-    if (readFile.read(&loadedConfig, sizeof(loadedConfig)) != sizeof(loadedConfig))
+    PersistentConfigData loadedConfig = {0, 0, 0, false};
+    size_t bytesRead = readFile.read(&loadedConfig, sizeof(loadedConfig));
+
+    #ifdef STRICT_CONFIG_VALIDATION
+    if (bytesRead != sizeof(loadedConfig))
     {
       readFile.close();
       return false;
     }
+#endif
 
     readFile.close();
 
     this->dmxStartChannel = loadedConfig.dmxStartChannel;
     this->brightness = loadedConfig.brightness;
     this->mode = loadedConfig.mode;
+    this->isLocked = loadedConfig.isLocked;
 
     StartupMessage("Config OK");
     return true;
@@ -102,6 +109,7 @@ bool SystemConfiguration::Save()
     data.dmxStartChannel = this->dmxStartChannel;
     data.brightness = this->brightness;
     data.mode = this->mode;
+    data.isLocked = this->isLocked;
 
     return Save(data);
 }
