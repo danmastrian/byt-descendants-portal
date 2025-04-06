@@ -766,11 +766,19 @@ void UIStateMain::Render()
     display.println();
     
     display.println();
+
     display.print(F("Press "));
     SetTextColor(true); // Inverted
     display.print(F(" OK "));
     SetTextColor();
-    display.println(F(" for menu"));
+    if (sysConfig.isLocked)
+    {
+        display.println(F(" to unlock"));
+    }
+    else
+    {
+        display.println(F(" for menu"));
+    }
 }
 
 UIState* UIStateMain::HandleButtonPress(UIButton button)
