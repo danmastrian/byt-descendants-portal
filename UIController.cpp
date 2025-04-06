@@ -643,8 +643,12 @@ private:
     // How often to refresh the display in msec
     const unsigned long DisplayRefreshPeriodMsec = 50UL;
     const int MenuItemCount = 5; // Yuck
+
     const char* StatusGlyphs = "|/-\\";
     const size_t StatusGlyphsLength = 4; // Yuck
+
+    // Weighting factor for latency update (2% current, 98% previous)
+    const double LatencyUpdateWeight = 0.02;
 
     UIStateMenu *mainMenu;
     UIState *unlockScreen;
@@ -730,10 +734,9 @@ void UIStateMain::Render()
         showDmxUniverseStatusGlyph = !showDmxUniverseStatusGlyph;
     }
 
-    const double latencyUpdateWeight = 0.01;
     dmxUniverseUpdateLatencyMsec = 
-        ((1.0 - latencyUpdateWeight) * dmxUniverseUpdateLatencyMsec) +
-        (latencyUpdateWeight * (double)(millis() - lastDmxUniverseUpdateCompletedMsec));
+        ((1.0 - LatencyUpdateWeight) * dmxUniverseUpdateLatencyMsec) +
+        (LatencyUpdateWeight * (double)(millis() - lastDmxUniverseUpdateCompletedMsec));
 
     // Clamp to threshold to avoid spiking on first update
     dmxUniverseUpdateLatencyMsec = min(
