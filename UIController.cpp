@@ -3,6 +3,9 @@
 #include "Constants.h"
 #include "DmxData.h"
 
+// TODO: Persist the lock state in flash storage
+bool g_IsInterfaceLocked = false;
+
 class UIStateDummy : public UIState
 {
 public:
@@ -190,6 +193,169 @@ public:
     }
 };
 
+class UIStateEnableLock : public UIState
+{
+private:
+
+    UIState* homeState;
+
+public:
+    UIStateEnableLock(UIState* homeState)
+        : UIState("LOCK INTERFACE"),
+            homeState(homeState)
+    {
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.println();
+        display.println();
+
+        display.print(F("Press "));
+        SetTextColor(true); // Inverted
+        display.print(F(" OK "));
+        SetTextColor();
+        display.println(F(" to lock"));
+
+        display.println();
+
+        display.print(F("Press "));
+        SetTextColor(true); // Inverted
+        display.print(F(" BACK "));
+        SetTextColor();
+        display.println(F(" to exit"));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+        case Back:
+            return parent;
+
+        case OK:
+            g_IsInterfaceLocked = true;
+            return homeState;
+        }
+
+        return this;
+    }
+};
+
+class UIStateDisableLock : public UIState
+{
+private:
+
+    static const int CodeLength = 3;
+
+    UIState* homeState;
+    char code[CodeLength + 1] = "___";
+    int selectedDigit = 0;
+    int codeIndex = 0;
+    const char* UnlockCode = "425";
+
+public:
+
+    UIStateDisableLock(UIState* homeState)
+        : UIState("UNLOCK INTERFACE"),
+            homeState(homeState)
+    {
+    }
+
+    virtual void Activate()
+    {
+        selectedDigit = 0;
+        codeIndex = 0;
+        memset(code, '_', CodeLength);
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.println(F("Enter code to unlock:"));
+        display.println();
+        display.println();
+        display.printf("     [%c] [%c] [%c]\n", code[0], code[1], code[2]);
+
+        display.println();
+        display.print(F("   "));
+        for (int i = 0; i < 10; i++)
+        {
+            if (i == 5)
+            {
+                display.println();
+                display.print(F("   "));
+            }
+
+            SetTextColor(i == selectedDigit);
+            display.printf(" %c ", i + '0');
+            SetTextColor();
+        }
+        display.println();
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+            case Back:
+            
+                return parent;
+
+            case OK:
+
+                code[codeIndex] = selectedDigit + '0';
+                codeIndex++;
+
+                if (codeIndex == CodeLength)
+                {
+                    if (!strcmp(code, UnlockCode))
+                    {
+                        // Correct code entered, unlock the interface
+                        g_IsInterfaceLocked = false;
+                        return homeState;
+                    }
+                    else
+                    {
+                        // Incorrect code entered, reset the code
+                        codeIndex = 0;
+                        memset(code, '_', CodeLength);
+                    }
+                }
+
+                SetDirty();
+                break;
+
+            case Left:
+                if (selectedDigit > 0)
+                {
+                    selectedDigit--;
+                }
+                else
+                {
+                    selectedDigit = 9;
+                }
+                SetDirty();
+                break;
+
+            case Right:
+                if (selectedDigit < 9)
+                {
+                    selectedDigit++;
+                }
+                else
+                {
+                    selectedDigit = 0;
+                }
+                SetDirty();
+                break;
+        }
+
+        return this;
+    }
+};
+
 class UIStateConfigMode : public UIState
 {
 private:
@@ -268,15 +434,26 @@ public:
 class UIStateDmxDump : public UIState
 {
 private:
-    const unsigned long updatePeriodMsec = 50UL;
+
+    // How often to refresh the display in msec
+    const unsigned long UpdatePeriodMsec = 50UL;
+
+    // Number of lines to display in the dump (up to 2 channels per line)
+    const uint16_t DumpLineCount = 4;
+
     unsigned long lastUpdateMsec = 0;
     unsigned long lastDmxPacketMsec = 0;
     bool showDmxStatusGlyph = false;
+    int page = 0;
+
+    void DumpChannelValues(uint16_t startCh, uint16_t chCount);
 
 public:
+
     UIStateDmxDump();
     virtual void Tick();
     virtual void Render();
+    virtual void Activate();
     virtual UIState* HandleButtonPress(UIButton button);
 };
 
@@ -287,7 +464,7 @@ UIStateDmxDump::UIStateDmxDump()
 
 void UIStateDmxDump::Tick()
 {
-    if (millis() - lastUpdateMsec >= updatePeriodMsec)
+    if (millis() - lastUpdateMsec >= UpdatePeriodMsec)
     {
       SetDirty();
       lastUpdateMsec = millis();
@@ -316,15 +493,25 @@ void UIStateDmxDump::Render()
     display.println(F(" to exit"));
     display.println();
 
-    uint16_t startCh = sysConfig.dmxStartChannel;
-    uint16_t chCount = sysConfig.DmxChannelCount;
-    const uint16_t lineCount = 4;
-
-    for (uint16_t ch = startCh; ch < startCh + min(chCount, lineCount); ++ch)
+    if (page == 0)
     {
-      if (ch + lineCount < startCh + chCount)
+        // Dump only the channels that this device is configured to use
+        DumpChannelValues(sysConfig.dmxStartChannel, sysConfig.DmxChannelCount);
+    }
+    else
+    {
+        // Dump a page of channels anywhere in the DMX universe
+        DumpChannelValues(((page - 1) * DumpLineCount * 2) + 1, DumpLineCount * 2);
+    }
+}
+
+void UIStateDmxDump::DumpChannelValues(uint16_t startCh, uint16_t chCount)
+{
+    for (uint16_t ch = startCh; ch < startCh + min(chCount, DumpLineCount); ++ch)
+    {
+      if (ch + DumpLineCount < startCh + chCount)
       {
-        display.printf("%3d = %3d | %3d = %3d\n", ch, dmxData[ch].Value, ch + lineCount, dmxData[ch + lineCount].Value);
+        display.printf("%3d = %3d | %3d = %3d\n", ch, dmxData[ch].Value, ch + DumpLineCount, dmxData[ch + DumpLineCount].Value);
       }
       else
       {
@@ -333,12 +520,44 @@ void UIStateDmxDump::Render()
     }
 }
 
+void UIStateDmxDump::Activate()
+{
+    lastUpdateMsec = 0;
+    lastDmxPacketMsec = 0;
+    showDmxStatusGlyph = false;
+    page = 0;
+}
+
 UIState *UIStateDmxDump::HandleButtonPress(UIButton button)
 {
     switch (button)
     {
-      case Back:
-          return parent;
+        case Back:
+            return parent;
+
+        case Right:
+            if (page < (DMX_UNIVERSE_SIZE / (DumpLineCount * 2)))
+            {
+                page++;
+            }
+            else
+            {
+                page = 0;
+            }
+            SetDirty();
+            break;
+
+        case Left:
+            if (page > 0)
+            {
+                page--;
+            }
+            else
+            {
+                page = (DMX_UNIVERSE_SIZE / (DumpLineCount * 2));
+            }
+            SetDirty();
+            break;
     }
 
     return this;
@@ -418,11 +637,12 @@ private:
 
     // How often to refresh the display in msec
     const unsigned long DisplayRefreshPeriodMsec = 50UL;
-    const int MenuItemCount = 4; // Yuck
+    const int MenuItemCount = 5; // Yuck
     const char* StatusGlyphs = "|/-\\";
     const size_t StatusGlyphsLength = 4; // Yuck
 
     UIStateMenu *mainMenu;
+    UIState *unlockScreen;
     unsigned long lastUpdateMsec = 0;
 
     //unsigned long lastDmxPacketMsec = 0;
@@ -453,8 +673,11 @@ UIStateMain::UIStateMain()
             new UIStateConfigDmxChannel(),
             new UIStateConfigBrightness(),
             new UIStateConfigMode(),
+            new UIStateEnableLock(this),
         },
         MenuItemCount);
+
+    unlockScreen = new UIStateDisableLock(this);
 }
 
 void UIStateMain::Tick()
@@ -474,9 +697,10 @@ void UIStateMain::Render()
 
     SetTextColor(false);
     display.printf(
-      " %c Mode %u",
+      " %c Mode %u %s",
       StatusGlyphs[statusGlyphIndex],
-      sysConfig.mode);
+      sysConfig.mode,
+      g_IsInterfaceLocked ? "LOCK" : "");
     display.println();
     display.println();
 
@@ -548,8 +772,16 @@ UIState* UIStateMain::HandleButtonPress(UIButton button)
 {
     if (button == OK)
     {
-        mainMenu->SetParent(this);
-        return mainMenu;
+        if (g_IsInterfaceLocked)
+        {
+            unlockScreen->SetParent(this);
+            return unlockScreen;
+        }
+        else
+        {
+            mainMenu->SetParent(this);
+            return mainMenu;
+        }
     }
 
     return this;
