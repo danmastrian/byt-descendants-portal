@@ -94,6 +94,8 @@ If the system is locked, pressing `OK` will prompt you to enter the unlock code.
 Displays DMX channel values. The first page shows the DMX channels currently in use by the system.
 Pressing `LEFT` or `RIGHT` will cycle through all channels in the DMX universe.
 
+A `*` character on the first line toggles on/off every time a packet of DMX data is received from the DMX receiver microcontroller.
+
 ### DMX Channel
 
 Sets the first DMX channel used by the system. If the selected channel is C, the DMX footprint will be:
@@ -105,7 +107,8 @@ Sets the first DMX channel used by the system. If the selected channel is C, the
 
 ### LED Brightness
 
-Sets the maximum(?) brightness of the LEDs.
+Sets the maximum brightness of the LEDs. The dimmest value is 5 and the brightest is 255.
+This value can be increased or decreased in increments of 5.
 
 ### Mode
 
@@ -114,7 +117,7 @@ Sets the operating mode of the system.
 |Mode|Description|
 |-------|-----------|
 |0|Normal mode. System is controlled by DMX.|
-|1|TBD...|
+|1|Test mode. Displays various patterns to test the LED strands.|
 
 ### Lock Interface
 
