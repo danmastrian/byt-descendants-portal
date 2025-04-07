@@ -14,6 +14,16 @@ Aside from the animations themselves, most of the system is designed to be a gen
 
 Currently, DMX universe refresh latency is ~40 msec, and render loop frequency is ~80 fps.
 
+## Goals
+
+- 30-60+ frames/sec
+- DMX latency < 50 msec
+- As ridiculously bright as possible
+
+## LEDs and Power Budget
+
+This was designed for 16 x 1 meter strips of [144 LEDs/meter strips of WS2812 LEDs](https://www.amazon.com/dp/B079ZRLMQR), 2304 RGBW LEDs in total. These draw ~20 mA/LED with a peak of 80 mA/pixel. Overall power draw at 5V should be 48-184A (230-920W), so this plan assumes that all pixels' RGBW channels will not be maxed out simultaneously.
+
 ## Control System
 
 The code in this repo was written for the [Adafruit Feather M4 Express (SAMD51)](https://www.adafruit.com/product/3857) board.
@@ -38,20 +48,17 @@ I did not use the main i<sup>2</sup>c bus because I had problems getting the M4 
 and peripheral (DMX data receiver from the ESP board) when using the default i<sup>2</sup>c bus/pins.
 
 I had to add external pullup resistors to this bus, and initially I used 4.7Kohm resistors.
-I saw a high rate of i2c packet truncation, and after some research I decided to try smaller resistors.
+I saw a high rate of i<sup>2</sup>c packet truncation, and after some research I decided to try smaller resistors.
 As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 
 ## Power Supply
 
-- PSU MeanWell 5V 100A
-- Bus Bars
-- Ammeter (contactless)
-- Diode?
-
-## Goals
-
-- 30-60+ frames/sec
-- DMX latency < 50 msec
+- [PSU: MeanWell 5V 100A](https://www.mouser.com/ProductDetail/MEAN-WELL/SE-600-5?qs=%252B6mEGs9UJHz4R8iFicJasg%3D%3D&countryCode=US&currencyCode=USD)
+- [Bus Bars](https://www.amazon.com/dp/B07KVW7F5X)
+- [VA Meter (contactless)](https://www.amazon.com/dp/B0BFJ5NV5L)
+  - This lets me verify voltage and current draw without needing to shunt 100A through the meter.
+- [Diode](https://www.amazon.com/dp/B0C1V6Y8ND)
+  - This prevents the MCUs from trying to back-power the LED strips when the main PSU is off and the MCUs are being powered via USB.
 
 ## User Interface
 
