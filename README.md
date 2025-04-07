@@ -57,8 +57,10 @@ As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 
 ### Home Screen
 
+When the system has finished starting up, the home screen will be displayed.
+
 ```
-[READY] - Mode X LOCK
+[READY] - Mode 0 LOCK
 
  Bright   255 (100%)
  DMX Ch   374 - 381 *
@@ -68,10 +70,29 @@ As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 Press [OK] for menu
 ```
 
+The first line has a spinning indicator to show that the main event loop is running.
+It also shows the current operating mode of the system, and the word `LOCK` if the system is locked.
+
+The `Bright` line shows the configured LED brightness level (0-255 and 0%-100%).
+
+The `DMX Ch` line shows the DMX channel footprint of the system. Start and end channels are inclusive.
+The `*` character after the channel range will toggle on/off every time a complete set of DMX universe data is received,
+which indicates whether the system is properly connected to the DMX bus.
+
+The `DMX Lag` line shows the average duration between receiving updates of the DMX universe data.
+This shows how responsive the system should be to DMX control. This should be < 50 msec.
+
+The `Render` line shows how many frames per second the system is currently generating.
+This indicates how frequently the LED display can be updated. This should be no less than 30 fps and ideally > 60 fps.
+
+If the system is unlocked, pressing `OK` will open the main menu, which allows you to select other screens described below.
+
+If the system is locked, pressing `OK` will prompt you to enter the unlock code.
+
 ### DMX Dump
 
 Displays DMX channel values. The first page shows the DMX channels currently in use by the system.
-Pressing LEFT or RIGHT will cycle through all channels in the DMX universe.
+Pressing `LEFT` or `RIGHT` will cycle through all channels in the DMX universe.
 
 ### DMX Channel
 
@@ -97,5 +118,5 @@ Sets the operating mode of the system.
 
 ### Lock Interface
 
-Press OK to lock the system to prevent settings from being changed.
-When locked, only the home screen will be available, the word "LOCK" will appear in the upper-right corner, and a code will be required to unlock the system.
+Press `OK` to lock the system to prevent settings from being changed.
+When locked, only the home screen will be available, the word `LOCK` will appear in the upper-right corner, and a code will be required to unlock the system.
