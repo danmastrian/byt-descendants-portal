@@ -20,9 +20,26 @@ Currently, DMX universe refresh latency is ~40 msec, and render loop frequency i
 - DMX latency < 50 msec
 - As ridiculously bright as possible
 
-## LEDs and Power Budget
+## Build + Deploy
 
-This was designed for 16 x 1 meter strips of [144 LEDs/meter strips of WS2812 LEDs](https://www.amazon.com/dp/B079ZRLMQR), 2304 RGBW LEDs in total. These draw ~20 mA/LED with a peak of 80 mA/pixel. Overall power draw at 5V should be 48-184A (230-920W), so this plan assumes that all pixels' RGBW channels will not be maxed out simultaneously.
+This project uses the Arduino CLI Sketch.yaml system. You may need to change COM ports in the yaml config.
+
+On Windows, install the Arduino CLI via:
+
+```cmd
+winget install -e --id ArduinoSA.CLI
+```
+
+And then build the project and flash the MCU. You may need to double-click the Reset button to enter bootloader mode on the Feather M4 before uploading.
+
+```cmd
+arduino-cli build
+arduino-cli upload
+```
+
+## LEDs + Power Budget
+
+This was designed for 16 x 1 meter strips of [144 LEDs/meter strips of WS2812 LEDs](https://www.amazon.com/dp/B079ZRLMQR), so 2304 RGBW LEDs in total. Each pixel draws ~20 mA with a peak of 80 mA. Overall power draw at 5V should be 48-184A (230-920W), so this plan assumes that all pixels' RGBW channels will not be maxed out simultaneously.
 
 ## Control System
 
