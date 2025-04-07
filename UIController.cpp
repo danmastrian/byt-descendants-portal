@@ -250,7 +250,7 @@ private:
     static const char UnspecifiedCodeChar = '_';
 
     UIState* homeState;
-    char code[CodeLength];
+    char code[CodeLength + 1] = { 0 };
     int selectedDigit = 0;
     int codeIndex = 0;
 
@@ -283,6 +283,7 @@ public:
         display.printf("     [%c] [%c] [%c]\n", code[0], code[1], code[2]);
         display.println();
 
+        // Digit selection
         display.println();
         display.print(F("   "));
         for (int i = 0; i < 10; i++)
