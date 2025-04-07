@@ -21,7 +21,8 @@ public:
     uint8_t mode = 42;
     bool isLocked = false;
 
-    const uint16_t DmxChannelCount = 8;
+    // Number of DMX channels used by this device
+    const uint16_t DmxChannelCount = 6;
 
     bool InitializeStorage();
     bool Save();
