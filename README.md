@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repo contains the microcontroller code for a system that drives ~2300 WS2812 ("NeoPixel") LEDs
+This repo contains the microcontroller code for a system that drives ~2300 WS2812 ("[NeoPixel](https://learn.adafruit.com/adafruit-neopixel-uberguide/the-magic-of-neopixels)") LEDs
 for a community theater production of [Disney's "Descendants" musical](https://www.mtishows.com/disneys-descendants-the-musical).
 
 The LEDs are arranged in two identical concentric circles, positioned vertically with the two half-strips adjacent to each other, to form a "magical portal" set piece. The system can be controlled via
