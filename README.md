@@ -53,5 +53,49 @@ As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 - 30-60+ frames/sec
 - DMX latency < 50 msec
 
+## User Interface
 
+### Home Screen
 
+```
+[READY] - Mode X LOCK
+
+ Bright   255 (100%)
+ DMX Ch   374 - 381 *
+ DMX Lag   42 ms     
+ Render    83 fps
+
+Press [OK] for menu
+```
+
+### DMX Dump
+
+Displays DMX channel values. The first page shows the DMX channels currently in use by the system.
+Pressing LEFT or RIGHT will cycle through all channels in the DMX universe.
+
+### DMX Channel
+
+Sets the first DMX channel used by the system. If the selected channel is C, the DMX footprint will be:
+
+|Channel|Description|
+|-------|-----------|
+|C|blah|
+|C+1|blah|
+
+### LED Brightness
+
+Sets the maximum(?) brightness of the LEDs.
+
+### Mode
+
+Sets the operating mode of the system.
+
+|Mode|Description|
+|-------|-----------|
+|0|Normal mode. System is controlled by DMX.|
+|1|TBD...|
+
+### Lock Interface
+
+Press OK to lock the system to prevent settings from being changed.
+When locked, only the home screen will be available, the word "LOCK" will appear in the upper-right corner, and a code will be required to unlock the system.
