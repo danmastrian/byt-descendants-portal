@@ -47,25 +47,41 @@ public:
 
     while (true)
     {
+      strip.clear();
       unsigned long elapsedMsecMaster = millis() - animationStartMsec;
-      
+      unsigned long elapsedMsecStopTime = 5000;
+
+      double flashWhitePercent = 0.0;
+      if (elapsedMsecMaster < 1000)
+      {
+        //flashWhitePercent = 1. - (elapsedMsecMaster / 1000.);
+        flashWhitePercent = pow(2, -6 * (elapsedMsecMaster / 1000.));
+        elapsedMsecMaster -= 750;
+      }
+
       for (int i = 0; i < LED_COUNT * 6; ++i)
       {
-        long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / 30); // propagate at 30 pixels/sec
-        if (elapsedMsecLocal < 0)
-          continue;
+        long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / 288); // propagate at N pixels/sec
+
 
         double percentDone = (double)(elapsedMsecLocal % curvePeriodMsec) / (double)curvePeriodMsec;
-        double brightnessPercent = sin(percentDone * PI);
+        //double brightnessPercent = sin(percentDone * PI);
+        double brightnessPercent = cos(PI * (percentDone - 0.5));
+        brightnessPercent *= brightnessPercent;
 
+        if (elapsedMsecLocal < 0 || elapsedMsecLocal > elapsedMsecStopTime)
+          brightnessPercent = 0.0;
+
+        // Auradon
+        /*
         if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
         {
           strip.setPixelColor(
             i,
-            brightnessPercent * 255,
-            brightnessPercent * 255,
+            brightnessPercent * 0.5 * 255,
+            brightnessPercent * 0.3 * 255,
             0,
-            0
+            brightnessPercent * 255
           );
         }
         else
@@ -76,6 +92,28 @@ public:
             0,
             brightnessPercent * 255,
             0
+          );
+        }
+          */
+
+        if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
+        {
+          strip.setPixelColor(
+            i,
+            brightnessPercent * 0.5 * 255,
+            0,
+            brightnessPercent * 0.8 * 255,
+            max(0, flashWhitePercent * 255)
+          );
+        }
+        else
+        {
+          strip.setPixelColor(
+            i,
+            0,
+            brightnessPercent * 255,
+            0,
+            max(0, flashWhitePercent * 255)
           );
         }
       }
