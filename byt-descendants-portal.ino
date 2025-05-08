@@ -106,6 +106,9 @@ public:
         allStopped = false;
       }
 
+      if (!stopRequested)
+        allStopped = false;
+
       // Auradon
       /*
       if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
