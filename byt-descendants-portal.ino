@@ -33,7 +33,7 @@ void SERCOM4_1_Handler() { myWire.onService(); }
 void SERCOM4_2_Handler() { myWire.onService(); }
 void SERCOM4_3_Handler() { myWire.onService(); }
 
-class DummyRenderProcessor : public RenderProcessor
+class TestRenderProcessor : public RenderProcessor
 {
 public:
 
@@ -43,10 +43,49 @@ public:
   }
 };
 
+class IdleRenderProcessor : public RenderProcessor
+{
+public:
+
+  virtual void Render() const
+  {
+    // TODO
+  }
+};
+
+class DmxRenderProcessor : public RenderProcessor
+{
+public:
+
+  virtual void Render() const
+  {
+    // TODO
+  }
+};
+
+RenderProcessor* renderProcessors[] = {
+  new TestRenderProcessor(),
+  new IdleRenderProcessor(),
+  new DmxRenderProcessor(),
+};
+
+class RootRenderProcessor : public RenderProcessor
+{
+public:
+
+  virtual void Render() const
+  {
+    if (sysConfig.mode >= sizeof(renderProcessors) / sizeof(renderProcessors[0]))
+      return;
+
+    renderProcessors[sysConfig.mode]->Render();
+  }
+};
+
 // Global data
 double fps = 0.0;
-DummyRenderProcessor drp;
-RenderController renderer(&drp);
+RootRenderProcessor rrp;
+RenderController renderer(&rrp);
 volatile unsigned long lastIsrUsec = 0;
 CRC32 crc;
 
@@ -170,7 +209,7 @@ void setup()
   strip.begin();
   DisplayTestPattern();
   StartupMessage("LED init OK");
-  delay(1000);
+  delay(5000);
 }
 
 void loop()
@@ -191,7 +230,7 @@ void loop()
 
 void rainbow()
 {
-  const long cyclePeriodMsec = 1000;
+  const long cyclePeriodMsec = 10000;
   long firstPixelHue = (millis() % cyclePeriodMsec) * 65536 / cyclePeriodMsec;
 
   // strip.rainbow() can take a single argument (first pixel hue) or

@@ -190,6 +190,82 @@ public:
     }
 };
 
+class UIStateManualTest : public UIState
+{
+private:
+    const int ANIMATION_COUNT = 5; // TODO
+    int selectedAnimationIndex = 0;
+
+public:
+    UIStateManualTest()
+        : UIState("MANUAL TEST")
+    {
+    }
+
+    virtual void Activate()
+    {
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.println();
+
+        display.print(F("Animation: "));
+        SetTextColor(true); // Inverted
+        display.print(F(" < ")); // Wraparound supported
+        display.print(selectedAnimationIndex);
+        display.println(F(" > "));
+
+        SetTextColor();
+        display.println();
+        display.print(F("Press "));
+        SetTextColor(true); // Inverted
+        display.print(F(" OK "));
+        SetTextColor();
+        display.println(F(" to run"));
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+        case Back:
+            return parent;
+
+        case Right:
+            if (selectedAnimationIndex < ANIMATION_COUNT - 1)
+            {
+                selectedAnimationIndex++;
+            }
+            else
+            {
+                selectedAnimationIndex = 0;
+            }
+            SetDirty();
+            break;
+
+        case Left:
+            if (selectedAnimationIndex > 0)
+            {
+                selectedAnimationIndex--;
+            }
+            else
+            {
+                selectedAnimationIndex = ANIMATION_COUNT - 1;
+            }
+            SetDirty();
+            break;
+
+        case OK:
+            // TODO
+            break;
+        }
+
+        return this;
+    }
+};
+
 class UIStateEnableLock : public UIState
 {
 private:
@@ -643,7 +719,7 @@ private:
 
     // How often to refresh the display in msec
     const unsigned long DisplayRefreshPeriodMsec = 50UL;
-    const int MenuItemCount = 5; // Yuck
+    const int MenuItemCount = 6; // Yuck
 
     const char* StatusGlyphs = "|/-\\";
     const size_t StatusGlyphsLength = 4; // Yuck
@@ -679,6 +755,7 @@ UIStateMain::UIStateMain()
     mainMenu = new UIStateMenu(
         "MAIN MENU",
         new UIState *[MenuItemCount] {
+            new UIStateManualTest(),
             new UIStateDmxDump(),
             new UIStateConfigDmxChannel(),
             new UIStateConfigBrightness(),

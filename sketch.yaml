@@ -16,6 +16,6 @@ profiles:
       - SdFat - Adafruit Fork (2.2.3)
       - Adafruit SPIFlash (5.0.1)
       - CRC (1.0.3)
-    port: COM5
+    port: COM4
 
 default_profile: feather_m4
