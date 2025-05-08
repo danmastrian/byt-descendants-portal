@@ -234,31 +234,17 @@ public:
             return parent;
 
         case Right:
-            if (selectedAnimationIndex < ANIMATION_COUNT - 1)
-            {
-                selectedAnimationIndex++;
-            }
-            else
-            {
-                selectedAnimationIndex = 0;
-            }
+            // start animation 0
             SetDirty();
             break;
 
         case Left:
-            if (selectedAnimationIndex > 0)
-            {
-                selectedAnimationIndex--;
-            }
-            else
-            {
-                selectedAnimationIndex = ANIMATION_COUNT - 1;
-            }
+            // start animation 1
             SetDirty();
             break;
 
         case OK:
-            // TODO
+            // stop animation
             break;
         }
 

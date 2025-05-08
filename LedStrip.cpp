@@ -12,4 +12,4 @@ int8_t pins[] = {
     -1, // Unused channel
 };
 
-Adafruit_NeoPXL8 strip(LED_COUNT, pins, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPXL8 strip(LED_COUNT_PER_CHANNEL, pins, NEO_GRBW + NEO_KHZ800);

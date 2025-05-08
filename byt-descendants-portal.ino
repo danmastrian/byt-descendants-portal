@@ -33,6 +33,134 @@ void SERCOM4_1_Handler() { myWire.onService(); }
 void SERCOM4_2_Handler() { myWire.onService(); }
 void SERCOM4_3_Handler() { myWire.onService(); }
 
+class AnimationContext
+{
+  unsigned long startMsec = 0;
+  unsigned long stopRequestedAtElapsedMsec = 0;
+  bool stopRequested = false;
+  bool isRunning = false;
+  int animationId = 0;
+
+  const long curvePeriodMsec = 1000;
+
+public:
+  void Start()
+  {
+    if (!isRunning)
+    {
+      startMsec = millis();
+      stopRequestedAtElapsedMsec = 0;
+      stopRequested = false;
+      isRunning = true;
+    }
+  }
+  
+  void Stop()
+  {
+    if (isRunning && !stopRequested)
+    {
+      stopRequestedAtElapsedMsec = millis() - startMsec;
+      stopRequested = true;
+    }
+  }
+
+  void Render()
+  {
+    if (!isRunning)
+      return;
+
+    unsigned long elapsedMsecMaster = millis() - startMsec;
+    
+    const unsigned long flashWhiteDurationMsec = 1000;
+
+    double flashWhitePercent = 0.0;
+    if (elapsedMsecMaster < flashWhiteDurationMsec)
+    {
+      //flashWhitePercent = 1. - (elapsedMsecMaster / flashWhiteDurationMsec.);
+
+      // Exponential decay function
+      flashWhitePercent = pow(2, -6 * ((double)elapsedMsecMaster / (double)flashWhiteDurationMsec));
+
+      // Delay the start of the main animation by 750 msec to overlap sligtly with the flash white
+      elapsedMsecMaster -= 750; 
+    }
+
+    bool allStopped = true;
+
+    // TODO duplicate values for secondary ring
+    for (int i = 0; i < LED_COUNT_TOTAL; ++i)
+    {
+      long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / 288); // propagate at N pixels/sec
+
+      double percentDone = (double)(elapsedMsecLocal % curvePeriodMsec) / (double)curvePeriodMsec;
+      //double brightnessPercent = sin(percentDone * PI);
+      double brightnessPercent = cos(PI * (percentDone - 0.5));
+      brightnessPercent *= brightnessPercent;
+
+      if (elapsedMsecLocal < 0 || (stopRequested && elapsedMsecLocal > stopRequestedAtElapsedMsec))
+      {
+        brightnessPercent = 0.0;
+      }
+      else
+      {
+        allStopped = false;
+      }
+
+      // Auradon
+      /*
+      if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
+      {
+        strip.setPixelColor(
+          i,
+          brightnessPercent * 0.5 * 255,
+          brightnessPercent * 0.3 * 255,
+          0,
+          brightnessPercent * 255
+        );
+      }
+      else
+      {
+        strip.setPixelColor(
+          i,
+          0,
+          0,
+          brightnessPercent * 255,
+          0
+        );
+      }
+        */
+
+      if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
+      {
+        strip.setPixelColor(
+          i,
+          brightnessPercent * 0.5 * 255,
+          0,
+          brightnessPercent * 0.8 * 255,
+          max(0, flashWhitePercent * 255)
+        );
+      }
+      else
+      {
+        strip.setPixelColor(
+          i,
+          0,
+          brightnessPercent * 255,
+          0,
+          max(0, flashWhitePercent * 255)
+        );
+      }
+    }
+
+    if (allStopped)
+    {
+      isRunning = false;
+    }
+  }
+};
+
+AnimationContext animationContext;
+
 class TestRenderProcessor : public RenderProcessor
 {
 public:
@@ -40,86 +168,8 @@ public:
   virtual void Render() const
   {
     //rainbow();
-
-    unsigned long animationStartMsec = millis();
-
-    long curvePeriodMsec = 1000;
-
-    while (true)
-    {
-      strip.clear();
-      unsigned long elapsedMsecMaster = millis() - animationStartMsec;
-      unsigned long elapsedMsecStopTime = 5000;
-
-      double flashWhitePercent = 0.0;
-      if (elapsedMsecMaster < 1000)
-      {
-        //flashWhitePercent = 1. - (elapsedMsecMaster / 1000.);
-        flashWhitePercent = pow(2, -6 * (elapsedMsecMaster / 1000.));
-        elapsedMsecMaster -= 750;
-      }
-
-      for (int i = 0; i < LED_COUNT * 6; ++i)
-      {
-        long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / 288); // propagate at N pixels/sec
-
-
-        double percentDone = (double)(elapsedMsecLocal % curvePeriodMsec) / (double)curvePeriodMsec;
-        //double brightnessPercent = sin(percentDone * PI);
-        double brightnessPercent = cos(PI * (percentDone - 0.5));
-        brightnessPercent *= brightnessPercent;
-
-        if (elapsedMsecLocal < 0 || elapsedMsecLocal > elapsedMsecStopTime)
-          brightnessPercent = 0.0;
-
-        // Auradon
-        /*
-        if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
-        {
-          strip.setPixelColor(
-            i,
-            brightnessPercent * 0.5 * 255,
-            brightnessPercent * 0.3 * 255,
-            0,
-            brightnessPercent * 255
-          );
-        }
-        else
-        {
-          strip.setPixelColor(
-            i,
-            0,
-            0,
-            brightnessPercent * 255,
-            0
-          );
-        }
-          */
-
-        if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
-        {
-          strip.setPixelColor(
-            i,
-            brightnessPercent * 0.5 * 255,
-            0,
-            brightnessPercent * 0.8 * 255,
-            max(0, flashWhitePercent * 255)
-          );
-        }
-        else
-        {
-          strip.setPixelColor(
-            i,
-            0,
-            brightnessPercent * 255,
-            0,
-            max(0, flashWhitePercent * 255)
-          );
-        }
-      }
-
-      strip.show();
-    }
+    animationContext.Start();
+    animationContext.Render();
   }
 };
 
@@ -174,7 +224,7 @@ void DisplayTestPattern()
   strip.clear();
   strip.setBrightness(sysConfig.brightness);
 
-  for (int i = 0; i < LED_COUNT; i++)
+  for (int i = 0; i < LED_COUNT_PER_CHANNEL; i++)
   {
       strip.setPixelColor(
         i,
