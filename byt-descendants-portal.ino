@@ -88,7 +88,7 @@ public:
     bool allStopped = true;
 
     // TODO duplicate values for secondary ring
-    for (int i = 0; i < LED_COUNT_TOTAL; ++i)
+    for (int i = 0; i < LED_COUNT_PER_RING; ++i)
     {
       long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / 288); // propagate at N pixels/sec
 
