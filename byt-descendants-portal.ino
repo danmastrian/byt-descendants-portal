@@ -39,7 +39,49 @@ public:
 
   virtual void Render() const
   {
-    rainbow();
+    //rainbow();
+
+    unsigned long animationStartMsec = millis();
+
+    long curvePeriodMsec = 1000;
+
+    while (true)
+    {
+      unsigned long elapsedMsecMaster = millis() - animationStartMsec;
+      
+      for (int i = 0; i < LED_COUNT * 6; ++i)
+      {
+        long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / 30); // propagate at 30 pixels/sec
+        if (elapsedMsecLocal < 0)
+          continue;
+
+        double percentDone = (double)(elapsedMsecLocal % curvePeriodMsec) / (double)curvePeriodMsec;
+        double brightnessPercent = sin(percentDone * PI);
+
+        if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
+        {
+          strip.setPixelColor(
+            i,
+            brightnessPercent * 255,
+            brightnessPercent * 255,
+            0,
+            0
+          );
+        }
+        else
+        {
+          strip.setPixelColor(
+            i,
+            0,
+            0,
+            brightnessPercent * 255,
+            0
+          );
+        }
+      }
+
+      strip.show();
+    }
   }
 };
 
@@ -59,7 +101,7 @@ public:
 
   virtual void Render() const
   {
-    // TODO
+
   }
 };
 
@@ -207,9 +249,9 @@ void setup()
   StartupMessage("Config load OK");
 
   strip.begin();
-  DisplayTestPattern();
+  //DisplayTestPattern();
   StartupMessage("LED init OK");
-  delay(5000);
+  //delay(1000);
 }
 
 void loop()
