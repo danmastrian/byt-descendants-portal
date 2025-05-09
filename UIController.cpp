@@ -2,6 +2,7 @@
 #include "SystemConfiguration.h"
 #include "Constants.h"
 #include "DmxData.h"
+#include "AnimationContext.h"
 
 class UIStateDummy : public UIState
 {
@@ -184,6 +185,53 @@ public:
             sysConfig.dmxStartChannel = newStartChannel;
             sysConfig.Save();
             return parent;
+        }
+
+        return this;
+    }
+};
+
+class UIStateShowMode : public UIState
+{
+private:
+
+public:
+    UIStateShowMode()
+        : UIState("RUN SHOW")
+    {
+    }
+
+    virtual void Activate()
+    {
+    }
+
+    virtual void Render()
+    {
+        display.println(F(GetName()));
+        display.println();
+    }
+
+    UIState *HandleButtonPress(UIButton button)
+    {
+        switch (button)
+        {
+        case Back:
+            animationContext.Stop();
+            break;
+
+        case Right:
+            animationContext.Start(1);
+            SetDirty();
+            break;
+
+        case Left:
+            animationContext.Start(0);
+            SetDirty();
+            break;
+
+        case OK:
+            animationContext.Start(2);
+            break;
         }
 
         return this;
@@ -705,7 +753,7 @@ private:
 
     // How often to refresh the display in msec
     const unsigned long DisplayRefreshPeriodMsec = 50UL;
-    const int MenuItemCount = 6; // Yuck
+    const int MenuItemCount = 7; // Yuck
 
     const char* StatusGlyphs = "|/-\\";
     const size_t StatusGlyphsLength = 4; // Yuck
@@ -741,6 +789,7 @@ UIStateMain::UIStateMain()
     mainMenu = new UIStateMenu(
         "MAIN MENU",
         new UIState *[MenuItemCount] {
+            new UIStateShowMode(),
             new UIStateManualTest(),
             new UIStateDmxDump(),
             new UIStateConfigDmxChannel(),
