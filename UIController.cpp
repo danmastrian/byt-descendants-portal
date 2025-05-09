@@ -194,6 +194,7 @@ public:
 class UIStateShowMode : public UIState
 {
 private:
+    int consecutiveBackPresses = 0;
 
 public:
     UIStateShowMode()
@@ -203,34 +204,54 @@ public:
 
     virtual void Activate()
     {
+        consecutiveBackPresses = 0;
     }
 
     virtual void Render()
     {
+        display.setTextSize(2);
         display.println(F(GetName()));
-        display.println();
+
+        display.setTextSize(1);
+        display.println(F(""));
     }
 
     UIState *HandleButtonPress(UIButton button)
     {
+        if (button == UIButton::Back && !animationContext.IsRunning())
+        {
+            ++consecutiveBackPresses;
+            if (consecutiveBackPresses == 5)
+            {
+                return parent;
+            }
+        }
+
+        consecutiveBackPresses = 0;
+
         switch (button)
         {
         case Back:
-            animationContext.Stop();
+            //if (animationContext.IsStopRequested())
+            //{
+            //    animationContext.StopImmediate();
+            //}
+            //else
+            //{
+                animationContext.Stop();
+            //}
             break;
 
-        case Right:
-            animationContext.Start(1);
-            SetDirty();
+        case Right: // Isle of the Lost
+            animationContext.Start(1, sysConfig.mode < 4); // YUCK
             break;
 
-        case Left:
-            animationContext.Start(0);
-            SetDirty();
+        case Left: // Auradon
+            animationContext.Start(0, sysConfig.mode < 4); // YUCK
             break;
 
-        case OK:
-            animationContext.Start(2);
+        case OK: // Finale (rainbow)
+            animationContext.Start(2, sysConfig.mode < 4); // YUCK
             break;
         }
 
@@ -986,8 +1007,8 @@ void UIController::Process()
         // No new event, but a key is still pressed
         UIButton button = TranslateKey(currentKeyPressed);
 
-        // Only support repeat for left/right buttons
-        if (button == UIButton::Left || button == UIButton::Right)
+        // Only support repeat for left/right/back buttons
+        if (button != UIButton::OK)
         {
             unsigned long msecSinceLastEvent = now - keyPressedAtMsec;
             unsigned long msecThreshold = isKeyHeld ? KEY_REPEAT_PERIOD_MSEC : KEY_HOLD_THRESHOLD_MSEC;

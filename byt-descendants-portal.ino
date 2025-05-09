@@ -40,9 +40,7 @@ public:
 
   virtual void Render() const
   {
-    //rainbow();
-    animationContext.Start(0);
-    animationContext.Render();
+    rainbow();
   }
 };
 
@@ -52,24 +50,60 @@ public:
 
   virtual void Render() const
   {
-    // TODO
   }
 };
 
 class ShowRenderProcessor : public RenderProcessor
 {
+private:
+
+  const uint8_t sensoryFriendlyMaxBrightness = 20;
+
+  bool useDmx;
+  bool isSensoryFriendly;
+
 public:
+
+  ShowRenderProcessor(bool useDmx, bool isSensoryFriendly)
+    : useDmx(useDmx),
+      isSensoryFriendly(isSensoryFriendly)
+  {
+  }
 
   virtual void Render() const
   {
+    if (useDmx)
+    {
+      uint8_t effect = dmxData[sysConfig.dmxStartChannel].Value;
+
+      switch (effect)
+      {
+        case 0:
+          animationContext.Stop();
+          break;
+
+        default:
+          animationContext.Start(effect - 1, !isSensoryFriendly);
+          break;
+      }
+    }
+
+    if (isSensoryFriendly)
+    {
+      strip.setBrightness(min(sysConfig.brightness, sensoryFriendlyMaxBrightness));
+    }
+
     animationContext.Render();
   }
 };
 
 RenderProcessor* renderProcessors[] = {
-  new TestRenderProcessor(),
   new IdleRenderProcessor(),
-  new ShowRenderProcessor(),
+  new TestRenderProcessor(),
+  new ShowRenderProcessor(false, false), // DMX off; normal
+  new ShowRenderProcessor(true, false),  // DMX on; normal
+  new ShowRenderProcessor(false, true), // DMX off; sensory-friendly
+  new ShowRenderProcessor(true, true),  // DMX on; sensory-friendly
 };
 
 class RootRenderProcessor : public RenderProcessor
