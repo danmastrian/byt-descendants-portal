@@ -13,7 +13,7 @@ class AnimationContext
     int animationId = 0;
 
 public:
-    void Start(int animationId)
+    void Start(int animationId, bool isFlashEnabled)
     {
         if (!isRunning)
         {
@@ -21,8 +21,10 @@ public:
             stopRequestedAtElapsedMsec = 0;
             stopRequested = false;
             isRunning = true;
-            this->animationId = animationId;
         }
+
+        // Allow color change while running
+        this->animationId = animationId;
     }
 
     void Stop()
@@ -42,8 +44,11 @@ public:
         unsigned long elapsedMsecMaster = millis() - startMsec;
 
         long curvePeriodMsec = 1000;
-        if (animationId == 2) curvePeriodMsec = 300;
-
+        if (animationId == 2)
+        {
+            curvePeriodMsec = 300;
+        }
+        
         const unsigned long flashWhiteDurationMsec = 1000;
 
         double flashWhitePercent = 0.0;
@@ -60,7 +65,6 @@ public:
 
         bool allStopped = true;
 
-        // TODO duplicate values for secondary ring
         for (int i = 0; i < LED_COUNT_PER_RING; ++i)
         {
             long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / 288); // propagate at N pixels/sec
@@ -155,11 +159,15 @@ public:
             }
             else if (animationId == 2) // Finale
             {
-                long distinctColors = 10;
+                const uint32_t wMask = 0xFF000000ul;
+                const long distinctColors = 10;
+                
                 long hue = ((elapsedMsecLocal / curvePeriodMsec) % distinctColors) * 65536 / distinctColors;
 
                 uint32_t color = strip.ColorHSV(hue, 255, brightnessPercent * 255);
+                color = (color & ~wMask) | max(color & wMask, (uint32_t)(flashWhitePercent * 255) << 24);
                 color = strip.gamma32(color);
+
                 strip.setPixelColor(i, color);
                 strip.setPixelColor(i + LED_COUNT_PER_RING, color);
             }
