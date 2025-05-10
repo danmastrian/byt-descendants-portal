@@ -38,6 +38,11 @@ class TestRenderProcessor : public RenderProcessor
 {
 public:
 
+  TestRenderProcessor()
+    : RenderProcessor("TEST")
+  {
+  }
+
   virtual void Render() const
   {
     rainbow();
@@ -47,6 +52,11 @@ public:
 class IdleRenderProcessor : public RenderProcessor
 {
 public:
+
+  IdleRenderProcessor()
+    : RenderProcessor("IDLE")
+  {
+  }
 
   virtual void Render() const
   {
@@ -65,7 +75,9 @@ private:
 public:
 
   ShowRenderProcessor(bool useDmx, bool isSensoryFriendly)
-    : useDmx(useDmx),
+    : RenderProcessor(useDmx ? (isSensoryFriendly ? "DMX SEN FR" : "DMX NORMAL")
+                             : (isSensoryFriendly ? "MANUAL SEN FR" : "MANUAL NORMAL")),
+      useDmx(useDmx),
       isSensoryFriendly(isSensoryFriendly)
   {
   }
@@ -74,7 +86,8 @@ public:
   {
     if (useDmx)
     {
-      uint8_t effect = dmxData[sysConfig.dmxStartChannel].Value;
+      uint8_t chValue = dmxData[sysConfig.dmxStartChannel].Value;
+      uint8_t effect = chValue / 10;
 
       switch (effect)
       {
@@ -106,13 +119,20 @@ RenderProcessor* renderProcessors[] = {
   new ShowRenderProcessor(true, true),  // DMX on; sensory-friendly
 };
 
+const int RenderProcessorCount = sizeof(renderProcessors) / sizeof(renderProcessors[0]);
+
 class RootRenderProcessor : public RenderProcessor
 {
 public:
 
+  RootRenderProcessor()
+    : RenderProcessor("ROOT")
+  {
+  }
+
   virtual void Render() const
   {
-    if (sysConfig.mode >= sizeof(renderProcessors) / sizeof(renderProcessors[0]))
+    if (sysConfig.mode >= RenderProcessorCount)
       return;
 
     renderProcessors[sysConfig.mode]->Render();

@@ -30,8 +30,23 @@ private:
     }
 
 public:
+
+    int GetRunningAnimationId()
+    {
+        if (stopRequested || !isRunning)
+            return -1;
+
+        return animationId;
+    }
+
     void Start(int animationId, bool isFlashEnabled)
     {
+        Serial.printf(
+            "AnimationContext.Start(%d, %d)\n",
+            animationId,
+            isFlashEnabled
+        );
+
         if (!isRunning)
         {
             startMsec = millis();
@@ -47,6 +62,8 @@ public:
 
     void Stop()
     {
+        Serial.printf("AnimationContext.Stop()\n");
+
         if (isRunning && !stopRequested)
         {
             stopRequestedAtElapsedMsec = millis() - startMsec;
@@ -79,32 +96,44 @@ public:
         long curvePeriodMsec = 1000;
         if (animationId == 2)
         {
-            // Smaller bands of color
+            // Smaller bands of color for rainbow mode
             curvePeriodMsec = 300;
         }
-        
-        const unsigned long flashWhiteDurationMsec = 1000;
 
         double flashWhitePercent = 0.0;
         if (isFlashEnabled)
         {
-            if (elapsedMsecMaster < flashWhiteDurationMsec)
-            {
-                // flashWhitePercent = 1. - (elapsedMsecMaster / flashWhiteDurationMsec.);
+            // Timings to sync with the portal sound effects
+            const unsigned long firstFlashDurationMsec = 1000;
+            const unsigned long secondFlashStartMsec = 4000;
+            const unsigned long secondFlashDurationMsec = 2000;
 
+            if (elapsedMsecMaster < firstFlashDurationMsec)
+            {
                 // Exponential decay function
-                flashWhitePercent = pow(2, -6 * ((double)elapsedMsecMaster / (double)flashWhiteDurationMsec));
+                flashWhitePercent = pow(2, -6 * ((double)elapsedMsecMaster / (double)firstFlashDurationMsec));
+            }
+            else if (
+                (animationId == 2) &&
+                (elapsedMsecMaster >= secondFlashStartMsec) &&
+                (elapsedMsecMaster < (secondFlashStartMsec + secondFlashDurationMsec))
+            )
+            {
+                flashWhitePercent = pow(2, -6 * ((double)(elapsedMsecMaster - secondFlashStartMsec) / (double)secondFlashDurationMsec));
             }
             
-            // Delay the start of the main animation by 750 msec to overlap sligtly with the flash white
-            elapsedMsecMaster -= 750;
+            // Delay the start of the main animation by 750 msec to overlap slightly with the flash white
+            elapsedMsecMaster -= (firstFlashDurationMsec * 3 / 4);
         }
 
         bool allStopped = stopRequested;
 
+        // Animation "rotates" at N pixels/sec
+        const long pixelsPerSec = LED_COUNT_PER_RING / 2;
+
         for (int i = 0; i < LED_COUNT_PER_RING; ++i)
         {
-            long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / 288); // propagate at N pixels/sec
+            long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / pixelsPerSec);
 
             double percentDone = (double)(elapsedMsecLocal % curvePeriodMsec) / (double)curvePeriodMsec;
             // double brightnessPercent = sin(percentDone * PI);
@@ -125,6 +154,7 @@ public:
             {
                 if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
                 {
+                    // Gold
                     SetPixelColor(
                         i,
                         brightnessPercent * 0.5 * 255,
@@ -134,6 +164,7 @@ public:
                 }
                 else
                 {
+                    // Blue
                     SetPixelColor(
                         i,
                         0,
@@ -146,6 +177,7 @@ public:
             {
                 if ((elapsedMsecLocal / curvePeriodMsec) % 2 == 0)
                 {
+                    // Purple
                     SetPixelColor(
                         i,
                         brightnessPercent * 0.5 * 255,
@@ -155,6 +187,7 @@ public:
                 }
                 else
                 {
+                    // Green
                     SetPixelColor(
                         i,
                         0,
@@ -163,7 +196,7 @@ public:
                         max(0, flashWhitePercent * 255));
                 }
             }
-            else if (animationId == 2) // Finale
+            else if (animationId == 2) // Finale (rainbow)
             {
                 const uint32_t wMask = 0xFF000000ul;
                 const long distinctColors = 10;

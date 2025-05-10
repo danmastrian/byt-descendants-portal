@@ -3,6 +3,7 @@
 #include "Constants.h"
 #include "DmxData.h"
 #include "AnimationContext.h"
+#include "RenderController.h"
 
 class UIStateDummy : public UIState
 {
@@ -221,10 +222,13 @@ public:
         if (button == UIButton::Back && !animationContext.IsRunning())
         {
             ++consecutiveBackPresses;
+
             if (consecutiveBackPresses == 5)
             {
                 return parent;
             }
+
+            return this;
         }
 
         consecutiveBackPresses = 0;
@@ -498,13 +502,13 @@ class UIStateConfigMode : public UIState
 private:
 
     const int MIN_MODE = 0;
-    const int MAX_MODE = 10;
+    const int MAX_MODE = RenderProcessorCount - 1;
 
     int newMode;
 
 public:
     UIStateConfigMode()
-        : UIState("MODE")
+        : UIState("RENDER MODE")
     {
     }
 
@@ -516,14 +520,15 @@ public:
     virtual void Render()
     {
         display.println(F(GetName()));
-        display.print(F("Current Mode: "));
-        display.println(sysConfig.mode);
+        display.println();
+        display.println(F("Current Mode: "));
+        display.printf("%d %s\n", sysConfig.mode, renderProcessors[sysConfig.mode]->GetName());
         display.println();
 
-        display.print(F("New Mode: "));
+        display.println(F("New Mode: "));
         SetTextColor(true); // Inverted
         display.print(newMode > MIN_MODE ? F(" < ") : F("   "));
-        display.print(newMode);
+        display.printf("%d %s", newMode, renderProcessors[newMode]->GetName());
         display.println(newMode < MAX_MODE ? F(" > ") : F("   "));
 
         SetTextColor();
@@ -902,6 +907,15 @@ void UIStateMain::Render()
     display.printf(" Render   %3u fps", (unsigned int)(fps + 0.5));
     display.println();
     
+    int animationId = animationContext.GetRunningAnimationId();
+    if (animationId >= 0)
+    {
+        display.printf(" Anim ID  %3d", animationContext.GetRunningAnimationId());
+    }
+    else
+    {
+        display.printf(" Anim ID  ---");
+    }
     display.println();
 
     display.print(F("Press "));
