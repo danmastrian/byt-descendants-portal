@@ -105,8 +105,8 @@ public:
         {
             // Timings to sync with the portal sound effects
             const unsigned long firstFlashDurationMsec = 1000;
-            const unsigned long secondFlashStartMsec = 4000;
-            const unsigned long secondFlashDurationMsec = 2000;
+            const unsigned long secondFlashStartMsec = 3500;
+            const unsigned long secondFlashDurationMsec = 4000;
 
             if (elapsedMsecMaster < firstFlashDurationMsec)
             {
@@ -123,13 +123,13 @@ public:
             }
             
             // Delay the start of the main animation by 750 msec to overlap slightly with the flash white
-            elapsedMsecMaster -= (firstFlashDurationMsec * 3 / 4);
+            elapsedMsecMaster -= (firstFlashDurationMsec / 2);
         }
 
         bool allStopped = stopRequested;
 
         // Animation "rotates" at N pixels/sec
-        const long pixelsPerSec = LED_COUNT_PER_RING / 2;
+        const long pixelsPerSec = LED_COUNT_PER_RING / 3;
 
         for (int i = 0; i < LED_COUNT_PER_RING; ++i)
         {
@@ -198,12 +198,18 @@ public:
             }
             else if (animationId == 2) // Finale (rainbow)
             {
+                const uint32_t rMask = 0x00FF0000ul;
+                const uint32_t gMask = 0x0000FF00ul;
+                const uint32_t bMask = 0x000000FFul;
                 const uint32_t wMask = 0xFF000000ul;
                 const long distinctColors = 10;
                 
                 long hue = ((elapsedMsecLocal / curvePeriodMsec) % distinctColors) * 65536 / distinctColors;
 
                 uint32_t color = strip.ColorHSV(hue, 255, brightnessPercent * 255);
+                color = (color & ~rMask) | max(color & rMask, (uint32_t)(flashWhitePercent * 255) << 16);
+                color = (color & ~gMask) | max(color & gMask, (uint32_t)(flashWhitePercent * 255) << 8);
+                color = (color & ~bMask) | max(color & bMask, (uint32_t)(flashWhitePercent * 255));
                 color = (color & ~wMask) | max(color & wMask, (uint32_t)(flashWhitePercent * 255) << 24);
                 color = strip.gamma32(color);
 
