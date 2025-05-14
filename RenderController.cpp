@@ -16,3 +16,8 @@ void RenderController::SetProcessor(const RenderProcessor* processor)
 {
   this->processor = processor;
 }
+
+void RenderController::WriteStatusString(Print& output) const
+{
+  this->processor->WriteStatusString(output);
+}

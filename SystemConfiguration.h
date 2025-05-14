@@ -22,7 +22,7 @@ public:
     bool isLocked = false;
 
     // Number of DMX channels used by this device
-    const uint16_t DmxChannelCount = 6;
+    static const uint16_t DmxChannelCount = 8;
 
     bool InitializeStorage();
     bool Save();

@@ -247,15 +247,15 @@ public:
             break;
 
         case Right: // Isle of the Lost
-            animationContext.Start(1, sysConfig.mode < 4); // YUCK
+            animationContext.Start(ANIMATION_ID_ISLE);
             break;
 
         case Left: // Auradon
-            animationContext.Start(0, sysConfig.mode < 4); // YUCK
+            animationContext.Start(ANIMATION_ID_AURADON);
             break;
 
         case OK: // Finale (rainbow)
-            animationContext.Start(2, sysConfig.mode < 4); // YUCK
+            animationContext.Start(ANIMATION_ID_FINALE);
             break;
         }
 
@@ -779,7 +779,7 @@ private:
 
     // How often to refresh the display in msec
     const unsigned long DisplayRefreshPeriodMsec = 50UL;
-    const int MenuItemCount = 7; // Yuck
+    const int MenuItemCount = 6; // Yuck
 
     const char* StatusGlyphs = "|/-\\";
     const size_t StatusGlyphsLength = 4; // Yuck
@@ -816,11 +816,10 @@ UIStateMain::UIStateMain()
         "MAIN MENU",
         new UIState *[MenuItemCount] {
             new UIStateShowMode(),
-            new UIStateManualTest(),
+            new UIStateConfigMode(),
             new UIStateDmxDump(),
             new UIStateConfigDmxChannel(),
             new UIStateConfigBrightness(),
-            new UIStateConfigMode(),
             new UIStateEnableLock(this),
         },
         MenuItemCount);
@@ -907,15 +906,8 @@ void UIStateMain::Render()
     display.printf(" Render   %3u fps", (unsigned int)(fps + 0.5));
     display.println();
     
-    int animationId = animationContext.GetRunningAnimationId();
-    if (animationId >= 0)
-    {
-        display.printf(" Anim ID  %3d", animationContext.GetRunningAnimationId());
-    }
-    else
-    {
-        display.printf(" Anim ID  ---");
-    }
+    display.printf(" Status   ");
+    renderer.WriteStatusString(display);
     display.println();
 
     display.print(F("Press "));

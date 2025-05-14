@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Arduino.h>
+
 class RenderProcessor
 {
 private:
@@ -21,6 +23,8 @@ public:
   {
     return name;
   }
+
+  virtual void WriteStatusString(Print& output) const;
 };
 
 extern RenderProcessor* renderProcessors[];
@@ -41,4 +45,8 @@ public:
 
   void Render() const;
   void SetProcessor(const RenderProcessor* processor);
+
+  void WriteStatusString(Print& output) const;
 };
+
+extern RenderController renderer;

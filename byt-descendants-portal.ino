@@ -10,6 +10,7 @@
 #include "DmxData.h"
 #include <CRC32.h>
 #include "AnimationContext.h"
+#include <Arduino.h>
 
 #define STATIC_ASSERT(condition) typedef char p__LINE__[ (condition) ? 1 : -1];
 #define ASSERT_TYPE_SIZE(type, bytes) STATIC_ASSERT(sizeof(type) == (bytes))
@@ -47,6 +48,11 @@ public:
   {
     rainbow();
   }
+
+  virtual void WriteStatusString(Print& output) const
+  {
+    output.print(F("TEST"));
+  }
 };
 
 class IdleRenderProcessor : public RenderProcessor
@@ -61,6 +67,110 @@ public:
   virtual void Render() const
   {
   }
+
+  virtual void WriteStatusString(Print& output) const
+  {
+    output.print(F("IDLE"));
+  }
+};
+
+class DmxRenderProcessor : public RenderProcessor
+{
+private:
+
+  const uint8_t DMX_EFFECT_MANUAL_RGBW = 25;
+
+  uint8_t GetCurrentEffect() const
+  {
+    return GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_EFFECT_MODE) / 10;
+  }
+
+public:
+
+DmxRenderProcessor()
+    : RenderProcessor("DMX")
+  {
+  }
+
+  virtual void Render() const
+  {
+    uint8_t effect = GetCurrentEffect();
+
+    if (effect == DMX_EFFECT_MANUAL_RGBW)
+    {
+      // Manually set RGB for the whole ring
+      strip.fill(
+        RGBW(
+          GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_R),
+          GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_G),
+          GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_B),
+          GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_W)
+        ).GetRaw(),
+        0,
+        LED_COUNT_TOTAL
+      );
+
+      return;
+    }
+
+    switch (effect)
+    {
+      case 0:
+        animationContext.Stop();
+        break;
+
+      default:
+        animationContext.Start(effect - 1);
+        break;
+    }
+
+    animationContext.SetRotationSpeed(
+      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_ROTATION_SPEED) * 10
+    );
+
+    animationContext.SetFlashBrightness(
+      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_FLASH_BRIGHTNESS)
+    );
+
+    strip.setBrightness(
+      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_MASTER_BRIGHTNESS)
+    );
+
+    animationContext.Render();
+  }
+
+  virtual void WriteStatusString(Print& output) const
+  {
+    if (GetCurrentEffect() == DMX_EFFECT_MANUAL_RGBW)
+    {
+      output.printf(
+        "%02X%02X%02X%02X",
+        GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_R),
+        GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_G),
+        GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_B),
+        GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_W)
+      );
+
+      return;
+    }
+
+    output.print(F("DMX "));
+
+    if (animationContext.IsStopRequested() && animationContext.IsRunning())
+    {
+      output.print(F("STOP..."));
+    }
+    else if (animationContext.IsRunning())
+    {
+      output.print(animationContext.GetRunningAnimationId());
+      output.print(F(" @ "));
+      output.print(GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_MASTER_BRIGHTNESS));
+    }
+    else
+    {
+      output.print(F("---"));
+    }
+  }
 };
 
 class ShowRenderProcessor : public RenderProcessor
@@ -69,54 +179,53 @@ private:
 
   const uint8_t sensoryFriendlyMaxBrightness = 20;
 
-  bool useDmx;
   bool isSensoryFriendly;
 
 public:
 
-  ShowRenderProcessor(bool useDmx, bool isSensoryFriendly)
-    : RenderProcessor(useDmx ? (isSensoryFriendly ? "DMX SEN FR" : "DMX NORMAL")
-                             : (isSensoryFriendly ? "MANUAL SEN FR" : "MANUAL NORMAL")),
-      useDmx(useDmx),
+  ShowRenderProcessor(bool isSensoryFriendly)
+    : RenderProcessor(isSensoryFriendly ? "MANUAL SENS" : "MANUAL NORMAL"),
       isSensoryFriendly(isSensoryFriendly)
   {
   }
 
   virtual void Render() const
   {
-    if (useDmx)
-    {
-      uint8_t chValue = dmxData[sysConfig.dmxStartChannel].Value;
-      uint8_t effect = chValue / 10;
-
-      switch (effect)
-      {
-        case 0:
-          animationContext.Stop();
-          break;
-
-        default:
-          animationContext.Start(effect - 1, !isSensoryFriendly);
-          break;
-      }
-    }
-
     if (isSensoryFriendly)
     {
       strip.setBrightness(min(sysConfig.brightness, sensoryFriendlyMaxBrightness));
+      animationContext.SetFlashBrightness(0);
+    }
+    else
+    {
+      strip.setBrightness(sysConfig.brightness);
+      animationContext.SetFlashBrightness(255);
     }
 
+    animationContext.SetRotationSpeed(LED_COUNT_PER_RING / 3);
+
     animationContext.Render();
+  }
+
+  virtual void WriteStatusString(Print& output) const
+  {
+    if (animationContext.IsRunning())
+    {
+      output.print(animationContext.GetRunningAnimationId());
+    }
+    else
+    {
+      output.print(F("---"));
+    }
   }
 };
 
 RenderProcessor* renderProcessors[] = {
   new IdleRenderProcessor(),
   new TestRenderProcessor(),
-  new ShowRenderProcessor(false, false), // DMX off; normal
-  new ShowRenderProcessor(true, false),  // DMX on; normal
-  new ShowRenderProcessor(false, true), // DMX off; sensory-friendly
-  new ShowRenderProcessor(true, true),  // DMX on; sensory-friendly
+  new ShowRenderProcessor(false), // DMX off; normal
+  new ShowRenderProcessor(true),  // DMX off; sensory-friendly
+  new DmxRenderProcessor(),       // DMX on
 };
 
 const int RenderProcessorCount = sizeof(renderProcessors) / sizeof(renderProcessors[0]);
@@ -136,6 +245,14 @@ public:
       return;
 
     renderProcessors[sysConfig.mode]->Render();
+  }
+
+  virtual void WriteStatusString(Print& output) const
+  {
+    if (sysConfig.mode >= RenderProcessorCount)
+      return;
+
+    renderProcessors[sysConfig.mode]->WriteStatusString(output);
   }
 };
 
