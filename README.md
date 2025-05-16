@@ -5,7 +5,7 @@
 This repo contains the microcontroller code for a system that drives ~2300 WS2812 ("[NeoPixel](https://learn.adafruit.com/adafruit-neopixel-uberguide/the-magic-of-neopixels)") LEDs
 for a community theater production of [Disney's "Descendants" musical](https://www.mtishows.com/disneys-descendants-the-musical).
 
-The LEDs are arranged in two identical concentric circles, positioned vertically with the two half-strips adjacent to each other, to form a "magical portal" set piece. The system can be controlled via
+The LEDs are arranged in two identical concentric circles, positioned vertically with the two strips adjacent to each other, to form a "magical portal" set piece. The system can be controlled via
 [DMX](https://en.wikipedia.org/wiki/DMX512), although the animations are generated procedurally by the device firmware.
 
 The system includes a small [OLED display](https://www.amazon.com/dp/B08CDN5PSJ) and [4-button keypad](https://www.adafruit.com/product/1332) which is used to display status and set configuration values such as DMX channel range and maximum brightness.
@@ -77,6 +77,16 @@ As I reduced the resistance, the rate of packet loss dropped. (TBD: 680ohm?)
 - [Diode](https://www.amazon.com/dp/B0C1V6Y8ND)
   - This prevents the MCUs from trying to back-power the LED strips when the main PSU is off and the MCUs are being powered via USB.
 
+## Physical Structure
+
+The main structure of the portal is composed of two layers of 1/4" thick by 2" wide by 7 feet long [HDPE](https://en.wikipedia.org/wiki/High-density_polyethylene) black plastic, cut by our friends at [TAP Plastics](https://www.tapplastics.com/about/locations/detail/bellevue_wa). The 6 strips are bolted together in pairs, forming 3 two-layer sections, and the sections are bolted together with about 6 cm of overlap on the outer layer. At the bottom, the strips are secured with bolts to 2" hinges mounted on 2" x 6" boards to allow for a flexible angle.
+
+My hope was that this plastic would be able to be bent without heat while still providing enough tension to naturally form a circle. This mostly worked, although the HDPE seemed to have a memory, and over time it lost its tendency to want to spring back. As a result, we had to redo the vertical tie lines that held it up, increasing the spacing of the eye bolts that anchored the tie lines to the ceiling grid.
+
+Because HDPE is inert, I could not rely on adhesives. The HDPE strips were connected with #10 bolts and nylon lock nuts. Outer layer seams were reinforced by [steel mending plates](https://www.homedepot.com/p/Everbilt-4-Pack-2-in-Black-Mending-Plate-33766/327600351) to avoid the strips bowing outwards.
+
+The LED strips came with 3M double-sided adhesive tape which adhered pretty well. But it was clear that the adhesion failed over time, especially as the strips were moved and bent. So to reliably secure the LED strips to the HDPE strips, I wrapped the entire ring with a clear stretchy monofilament, which worked very well.
+
 ## User Interface
 
 ### Home Screen
@@ -90,7 +100,7 @@ When the system has finished starting up, the home screen will be displayed.
  DMX Ch   374 - 381 *
  DMX Lag   42 ms     
  Render    83 fps
-
+ Status    DMX ---
 Press [OK] for menu
 ```
 
@@ -109,9 +119,24 @@ This shows how responsive the system should be to DMX control. This should be < 
 The `Render` line shows how many frames per second the system is currently generating.
 This indicates how frequently the LED display can be updated. This should be no less than 30 fps and ideally > 60 fps.
 
+The `Status` line shows the currently-active animation or other rendering status.
+
 If the system is unlocked, pressing `OK` will open the main menu, which allows you to select other screens described below.
 
 If the system is locked, pressing `OK` will prompt you to enter the unlock code.
+
+### Run Show
+
+When the system is in manual mode, animations can be cued manually from the `RUN SHOW` screen.
+
+On the `RUN SHOW` screen, the buttons behave as follows:
+
+|Button|Description|
+|------|-----------|
+|BACK|If an animation is running, switch to the 'Close Portal' animation<br/>If no animation is running, hold to exit `RUN SHOW` mode.|
+|LEFT|Auradon: start or switch-to animation|
+|RIGHT|Isle: start or switch-to animation|
+|OK|Finale: start or switch-to animation|
 
 ### DMX Dump
 
@@ -124,10 +149,16 @@ A `*` character on the first line toggles on/off every time a packet of DMX data
 
 Sets the first DMX channel used by the system. If the selected channel is C, the DMX footprint will be:
 
-|Channel|Description|
-|-------|-----------|
-|C|blah|
-|C+1|blah|
+|Channel|Label|Notes|
+|-------|-----------|------|
+|C|Effect Trigger|[0-9] = Idle (Close Portal)<br/>[10-19] = Auradon<br/>[20-29] = Isle of the Lost<br/>[30-39] = Finale (rainbow)<br/>[250-255] = Manual RGB|
+|C+1|Master Brightness|Intensity: 0-255|
+|C+2|Rotation Speed|n * 10 pixels/sec (nominal: 29)|
+|C+3|Flash Brightness|Intensity: 0-255|
+|C+4|R|0-255|
+|C+5|G|0-255|
+|C+6|B|0-255|
+|C+7|W|0-255|
 
 ### LED Brightness
 
@@ -138,10 +169,13 @@ This value can be increased or decreased in increments of 5.
 
 Sets the operating mode of the system.
 
-|Mode|Description|
-|-------|-----------|
-|0|Normal mode. System is controlled by DMX.|
-|1|Test mode. Displays various patterns to test the LED strands.|
+|Mode|Name|Description|
+|-------|-----------|----|
+|0|Idle|LEDs off|
+|1|Test|Displays a test pattern|
+|2|Manual Normal|Use 'Run Show' to manually trigger effects|
+|3|Manual Sensory|Use 'Run Show' to manually trigger effects; output is limited to be sensory-friendly|
+|4|DMX|System is controlled via DMX|
 
 ### Lock Interface
 
