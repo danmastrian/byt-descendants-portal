@@ -21,16 +21,19 @@ private:
 
     static void SetPixelColor(int pixelIndex, uint8_t r, uint8_t g, uint8_t b, uint8_t w);
     static void SetPixelColor(int pixelIndex, uint32_t rgbw);
+    static void SetPixelColor(int pixelIndex, const RGBW& rgbw);
 
 public:
 
-    int GetRunningAnimationId() const;
+    AnimationContext();
 
     void Start(int animationId);
     void Stop();
     void StopImmediate();
+
     bool IsRunning() const;
     bool IsStopRequested() const;
+    int GetRunningAnimationId() const;
 
     void SetRotationSpeed(long pixelsPerSec);
     void SetFlashBrightness(uint8_t brightness);

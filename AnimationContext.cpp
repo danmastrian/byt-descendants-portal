@@ -42,19 +42,67 @@ const long distinctColorsAuradon = sizeof(colorMapAuradon) / sizeof(colorMapAura
 const long distinctColorsIsle = sizeof(colorMapIsle) / sizeof(colorMapIsle[0]);
 const long distinctColorsFinale = 10;
 
+#define PRECOMPUTE_NORMAL_CURVE
+
+double precomputedNormalCurve_1000[1000] = { 0 };
+double precomputedNormalCurve_300[300] = { 0 };
+
+double ApproximateNormalCurve(long numerator, long denominator)
+{
+    // What percent of the color band has already passed? 0 = start, 0.5 = middle/brightest, 1 = end
+    double percentDone = (double)(numerator) / (double)denominator;
+
+    // Cheaper approximation of a normal curve, so the brightest spot is in the middle
+    double brightnessPercent = cos(PI * (percentDone - 0.5));
+    brightnessPercent *= brightnessPercent;
+
+    return brightnessPercent;
+}
+
+void PrecomputeNormalCurve(long periodMsec, double* precomputedCurve)
+{
+    for (long i = 0; i < periodMsec; ++i)
+    {
+        precomputedCurve[i] = ApproximateNormalCurve(i, periodMsec);
+    }
+}
+
 AnimationContext animationContext;
+
+AnimationContext::AnimationContext()
+{
+    // Precompute the normal curve for the two periods we use
+    PrecomputeNormalCurve(1000, precomputedNormalCurve_1000);
+    PrecomputeNormalCurve(300, precomputedNormalCurve_300);
+}
 
 void AnimationContext::SetPixelColor(int pixelIndex, uint8_t r, uint8_t g, uint8_t b, uint8_t w)
 {
-    strip.setPixelColor(pixelIndex, r, g, b, w);
-    strip.setPixelColor(pixelIndex + LED_COUNT_PER_RING, r, g, b, w);
+    strip.setPixelColor(
+      pixelIndex,
+      r, g, b, w);
+
+    strip.setPixelColor(
+      pixelIndex + LED_COUNT_PER_RING,
+      r, g, b, w);
 }
 
 void AnimationContext::SetPixelColor(int pixelIndex, uint32_t rgbw)
 {
     rgbw = strip.gamma32(rgbw);
-    strip.setPixelColor(pixelIndex, rgbw);
-    strip.setPixelColor(pixelIndex + LED_COUNT_PER_RING, rgbw);
+
+    strip.setPixelColor(
+      pixelIndex,
+      rgbw);
+
+    strip.setPixelColor(
+      pixelIndex + LED_COUNT_PER_RING,
+      rgbw);
+}
+
+void AnimationContext::SetPixelColor(int pixelIndex, const RGBW& rgbw)
+{
+    SetPixelColor(pixelIndex, rgbw.GetRaw());
 }
 
 int AnimationContext::GetRunningAnimationId() const
@@ -67,18 +115,20 @@ int AnimationContext::GetRunningAnimationId() const
 
 void AnimationContext::Start(int animationId)
 {
-    Serial.printf(
-        "AnimationContext.Start(%d)\n",
-        animationId
-    );
+    // Serial.printf(
+    //     "AnimationContext.Start(%d)\n",
+    //     animationId
+    // );
 
     if (!isRunning)
     {
         startMsec = millis();
-        stopRequestedAtElapsedMsec = 0;
-        stopRequested = false;
         isRunning = true;
     }
+
+    // Allow immediate restart while a stop was in progress
+    stopRequestedAtElapsedMsec = 0;
+    stopRequested = false;
 
     // Allow color change while running
     this->animationId = animationId;
@@ -86,7 +136,7 @@ void AnimationContext::Start(int animationId)
 
 void AnimationContext::Stop()
 {
-    Serial.printf("AnimationContext.Stop()\n");
+    // Serial.printf("AnimationContext.Stop()\n");
 
     if (isRunning && !stopRequested)
     {
@@ -129,10 +179,13 @@ void AnimationContext::Render() const
 
     // How "long" is each band of color in msec
     long curvePeriodMsec = 1000;
-    if (animationId == 2)
+    double* precomputedCurve = precomputedNormalCurve_1000;
+
+    if (animationId == ANIMATION_ID_FINALE)
     {
         // Smaller bands of color for rainbow mode
         curvePeriodMsec = 300;
+        precomputedCurve = precomputedNormalCurve_300;
     }
 
     double flashWhitePercent = 0.0;
@@ -151,7 +204,7 @@ void AnimationContext::Render() const
             flashWhitePercent = pow(2, -6 * ((double)elapsedMsecMaster / (double)firstFlashDurationMsec));
         }
         else if (
-            (animationId == 2) &&
+            (animationId == ANIMATION_ID_FINALE) &&
             (elapsedMsecMaster >= secondFlashStartMsec) &&
             (elapsedMsecMaster < (secondFlashStartMsec + secondFlashDurationMsec))
         )
@@ -176,12 +229,20 @@ void AnimationContext::Render() const
         // different time zone.
         long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / rotationSpeedPixelsPerSec);
 
+#ifdef PRECOMPUTE_NORMAL_CURVE
+
+        double brightnessPercent = precomputedCurve[elapsedMsecLocal % curvePeriodMsec];
+
+#else
+
         // What percent of the color band has already passed? 0 = start, 0.5 = middle/brightest, 1 = end
         double percentDone = (double)(elapsedMsecLocal % curvePeriodMsec) / (double)curvePeriodMsec;
         
         // Cheaper approximation of a normal curve, so the brightest spot is in the middle
         double brightnessPercent = cos(PI * (percentDone - 0.5));
         brightnessPercent *= brightnessPercent;
+
+#endif
 
         // Black out pixels that the animation has not yet reached, or that are past the stop time
         if (elapsedMsecLocal < 0 || (stopRequested && elapsedMsecLocal > stopRequestedAtElapsedMsec))
@@ -201,7 +262,6 @@ void AnimationContext::Render() const
                 baseColor
                     .AdjustBrightness(brightnessPercent)
                     .PerChannelMax(flashWhiteColor)
-                    .GetRaw()
             );
         }
         else if (animationId == ANIMATION_ID_ISLE)
@@ -212,7 +272,6 @@ void AnimationContext::Render() const
                 baseColor
                     .AdjustBrightness(brightnessPercent)
                     .PerChannelMax(flashWhiteColor)
-                    .GetRaw()
             );
         }
         else if (animationId == ANIMATION_ID_FINALE)
@@ -223,7 +282,7 @@ void AnimationContext::Render() const
             // Apply flash white effect (all channels)
             color = color.PerChannelMax(flashWhiteColor);
 
-            SetPixelColor(i, color.GetRaw());
+            SetPixelColor(i, color);
         }
     }
 

@@ -233,6 +233,16 @@ public:
         display.printf(" Status   ");
         renderer.WriteStatusString(display);
         display.println();
+        display.println();
+
+        if (animationContext.IsRunning())
+        {
+            display.println(F("Press BACK to stop"));
+        }
+        else
+        {
+            display.println(F("Hold BACK to exit"));
+        }
     }
 
     UIState *HandleButtonPress(UIButton button)
