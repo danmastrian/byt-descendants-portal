@@ -195,12 +195,26 @@ public:
 class UIStateShowMode : public UIState
 {
 private:
+
+    // How often to refresh the display in msec
+    const unsigned long UpdatePeriodMsec = 100UL;
+
     int consecutiveBackPresses = 0;
+    unsigned long lastUpdateMsec = 0;
 
 public:
     UIStateShowMode()
         : UIState("RUN SHOW")
     {
+    }
+
+    virtual void Tick()
+    {
+        if (millis() - lastUpdateMsec >= UpdatePeriodMsec)
+        {
+            SetDirty();
+            lastUpdateMsec = millis();
+        }
     }
 
     virtual void Activate()
@@ -214,7 +228,11 @@ public:
         display.println(F(GetName()));
 
         display.setTextSize(1);
-        display.println(F(""));
+        display.println();
+
+        display.printf(" Status   ");
+        renderer.WriteStatusString(display);
+        display.println();
     }
 
     UIState *HandleButtonPress(UIButton button)
@@ -839,7 +857,10 @@ void UIStateMain::Tick()
 
 void UIStateMain::Render()
 {
-    SetTextColor(true); // Inverted
+    if ((millis() >> 8) % 2) // Toggle every 256 msec
+    {
+        SetTextColor(true); // Inverted
+    }
     display.printf(" READY ");
 
     SetTextColor(false);
@@ -893,7 +914,9 @@ void UIStateMain::Render()
     display.print(F(" DMX Lag  "));
     if (dmxUniverseUpdateLatencyMsec >= DmxUniverseUpdateLatencyMsecThreshold)
     {
+        SetTextColor(true); // Inverted
         display.println(F("NO SIGNAL"));
+        SetTextColor(false);
     }
     else
     {

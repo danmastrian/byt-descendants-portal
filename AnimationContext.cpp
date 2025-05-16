@@ -19,8 +19,6 @@ RGBW colorMapAuradon[] = {
     ),
 };
 
-const long distinctColorsAuradon = sizeof(colorMapAuradon) / sizeof(colorMapAuradon[0]);
-
 RGBW colorMapIsle[] = {
 
     // Purple
@@ -40,11 +38,9 @@ RGBW colorMapIsle[] = {
     ),
 };
 
+const long distinctColorsAuradon = sizeof(colorMapAuradon) / sizeof(colorMapAuradon[0]);
 const long distinctColorsIsle = sizeof(colorMapIsle) / sizeof(colorMapIsle[0]);
-
 const long distinctColorsFinale = 10;
-
-
 
 AnimationContext animationContext;
 
@@ -56,6 +52,7 @@ void AnimationContext::SetPixelColor(int pixelIndex, uint8_t r, uint8_t g, uint8
 
 void AnimationContext::SetPixelColor(int pixelIndex, uint32_t rgbw)
 {
+    rgbw = strip.gamma32(rgbw);
     strip.setPixelColor(pixelIndex, rgbw);
     strip.setPixelColor(pixelIndex + LED_COUNT_PER_RING, rgbw);
 }
@@ -167,6 +164,8 @@ void AnimationContext::Render() const
         elapsedMsecMaster -= (firstFlashDurationMsec / 2);
     }
 
+    RGBW flashWhiteColor = RGBW::AllChannels(flashWhitePercent * 255);
+
     bool allStopped = stopRequested;
 
     // Compute the color for each pixel in the ring. Duplicate the pixels in the second ring.
@@ -194,23 +193,26 @@ void AnimationContext::Render() const
             allStopped = false;
         }
 
-        // Auradon
         if (animationId == ANIMATION_ID_AURADON)
         {
+            RGBW& baseColor = colorMapAuradon[(elapsedMsecLocal / curvePeriodMsec) % distinctColorsAuradon];
             SetPixelColor(
                 i,
-                colorMapAuradon[(elapsedMsecLocal / curvePeriodMsec) % distinctColorsAuradon].PerChannelMax(
-                    RGBW::AllChannels(flashWhitePercent * 255)
-                ).GetRaw()
+                baseColor
+                    .AdjustBrightness(brightnessPercent)
+                    .PerChannelMax(flashWhiteColor)
+                    .GetRaw()
             );
         }
         else if (animationId == ANIMATION_ID_ISLE)
         {
+            RGBW& baseColor = colorMapIsle[(elapsedMsecLocal / curvePeriodMsec) % distinctColorsIsle];
             SetPixelColor(
                 i,
-                colorMapIsle[(elapsedMsecLocal / curvePeriodMsec) % distinctColorsIsle].PerChannelMax(
-                    RGBW::AllChannels(flashWhitePercent * 255)
-                ).GetRaw()
+                baseColor
+                    .AdjustBrightness(brightnessPercent)
+                    .PerChannelMax(flashWhiteColor)
+                    .GetRaw()
             );
         }
         else if (animationId == ANIMATION_ID_FINALE)
@@ -219,9 +221,9 @@ void AnimationContext::Render() const
             RGBW color = RGBW::FromHSV(hue, 255, brightnessPercent * 255);
 
             // Apply flash white effect (all channels)
-            color = color.PerChannelMax(RGBW::AllChannels(flashWhitePercent * 255));
+            color = color.PerChannelMax(flashWhiteColor);
 
-            SetPixelColor(i, strip.gamma32(color.GetRaw()));
+            SetPixelColor(i, color.GetRaw());
         }
     }
 
