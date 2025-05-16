@@ -33,6 +33,9 @@ void StartupMessage(const char *msg)
     display.println();
     display.println(msg);
     display.display();
+
+    Serial.println(msg);
+
     delay(100);
 }
 
@@ -47,6 +50,9 @@ void SystemPanic(const char *msg)
     display.println();
     display.println(msg);
     display.display();
+
+    Serial.println(F("< SYSTEM PANIC >"));
+    Serial.println(msg);
     
     // Halt
     while (true) { delay(1000); }

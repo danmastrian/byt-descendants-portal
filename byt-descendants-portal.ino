@@ -373,17 +373,18 @@ void setup()
     SystemPanic("Keypad init failed");
   }
   StartupMessage("Keypad OK");
-  
+
   if (!sysConfig.InitializeStorage())
   {
     SystemPanic("Config load failed");
   }
   StartupMessage("Config load OK");
 
-  strip.begin();
-  //DisplayTestPattern();
+  if (!strip.begin())
+  {
+    SystemPanic("LED init failed");
+  }
   StartupMessage("LED init OK");
-  //delay(1000);
 }
 
 void loop()
