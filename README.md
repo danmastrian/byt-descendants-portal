@@ -5,7 +5,7 @@
 This repo contains the microcontroller code for a system that drives ~2300 WS2812 ("[NeoPixel](https://learn.adafruit.com/adafruit-neopixel-uberguide/the-magic-of-neopixels)") LEDs
 for a community theater production of [Disney's "Descendants" musical](https://www.mtishows.com/disneys-descendants-the-musical).
 
-The LEDs are arranged in two identical concentric circles, positioned vertically with the two half-strips adjacent to each other, to form a "magical portal" set piece. The system can be controlled via
+The LEDs are arranged in two identical concentric circles, positioned vertically with the two strips adjacent to each other, to form a "magical portal" set piece. The system can be controlled via
 [DMX](https://en.wikipedia.org/wiki/DMX512), although the animations are generated procedurally by the device firmware.
 
 The system includes a small [OLED display](https://www.amazon.com/dp/B08CDN5PSJ) and [4-button keypad](https://www.adafruit.com/product/1332) which is used to display status and set configuration values such as DMX channel range and maximum brightness.
