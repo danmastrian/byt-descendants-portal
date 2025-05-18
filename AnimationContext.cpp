@@ -42,8 +42,6 @@ const long distinctColorsAuradon = sizeof(colorMapAuradon) / sizeof(colorMapAura
 const long distinctColorsIsle = sizeof(colorMapIsle) / sizeof(colorMapIsle[0]);
 const long distinctColorsFinale = 10;
 
-#define PRECOMPUTE_NORMAL_CURVE
-
 double precomputedNormalCurve_1000[1000] = { 0 };
 double precomputedNormalCurve_300[300] = { 0 };
 
@@ -229,20 +227,9 @@ void AnimationContext::Render() const
         // different time zone.
         long elapsedMsecLocal = elapsedMsecMaster - (i * 1000 / rotationSpeedPixelsPerSec);
 
-#ifdef PRECOMPUTE_NORMAL_CURVE
-
-        double brightnessPercent = precomputedCurve[elapsedMsecLocal % curvePeriodMsec];
-
-#else
-
-        // What percent of the color band has already passed? 0 = start, 0.5 = middle/brightest, 1 = end
-        double percentDone = (double)(elapsedMsecLocal % curvePeriodMsec) / (double)curvePeriodMsec;
-        
-        // Cheaper approximation of a normal curve, so the brightest spot is in the middle
-        double brightnessPercent = cos(PI * (percentDone - 0.5));
-        brightnessPercent *= brightnessPercent;
-
-#endif
+        double brightnessPercent = (precomputedCurve != nullptr)
+            ? precomputedCurve[elapsedMsecLocal % curvePeriodMsec]
+            : ApproximateNormalCurve(elapsedMsecLocal % curvePeriodMsec, curvePeriodMsec);
 
         // Black out pixels that the animation has not yet reached, or that are past the stop time
         if (elapsedMsecLocal < 0 || (stopRequested && elapsedMsecLocal > stopRequestedAtElapsedMsec))
@@ -251,6 +238,7 @@ void AnimationContext::Render() const
         }
         else
         {
+            // Portal has "closed" and the animation will now be stopped
             allStopped = false;
         }
 
