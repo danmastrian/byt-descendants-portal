@@ -107,7 +107,7 @@ void AnimationContext::SetPixelColor(int pixelIndex, const RGBW& rgbw)
 
 int AnimationContext::GetRunningAnimationId() const
 {
-    if (stopRequested || !isRunning)
+    if (!isRunning)
         return -1;
 
     return animationId;

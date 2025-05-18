@@ -125,11 +125,17 @@ DmxRenderProcessor()
     }
 
     animationContext.SetRotationSpeed(
-      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_ROTATION_SPEED) * 10
+      // Set a minimum rotation speed, to avoid DMX setting it too low
+      max(15, GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_ROTATION_SPEED)) * 10
     );
 
     animationContext.SetFlashBrightness(
-      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_FLASH_BRIGHTNESS)
+      //
+      // Temporarily ignore the flash brightness (strobe intensity) DMX channel.
+      // Fix cues and undo this for the next sensory-friendly show!
+      //
+      // GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_FLASH_BRIGHTNESS)
+      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_MASTER_BRIGHTNESS)
     );
 
     strip.setBrightness(
@@ -211,6 +217,11 @@ public:
   {
     if (animationContext.IsRunning())
     {
+      if (animationContext.IsStopRequested())
+      {
+        output.print(F("STOP "));
+      }
+
       output.print(animationContext.GetRunningAnimationId());
     }
     else
@@ -230,6 +241,8 @@ RenderProcessor* renderProcessors[] = {
 
 const int RenderProcessorCount = sizeof(renderProcessors) / sizeof(renderProcessors[0]);
 
+bool manualRenderMode = false;
+
 class RootRenderProcessor : public RenderProcessor
 {
 public:
@@ -241,6 +254,14 @@ public:
 
   virtual void Render() const
   {
+    // Gross hack; need to fix this later
+    if ((sysConfig.mode == 4) && manualRenderMode)
+    {
+      // Ignore DMX and use manual controls
+      renderProcessors[2]->Render();
+      return;
+    }
+
     if (sysConfig.mode >= RenderProcessorCount)
       return;
 

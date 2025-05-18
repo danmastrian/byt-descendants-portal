@@ -29,6 +29,7 @@ public:
 
 extern RenderProcessor* renderProcessors[];
 extern const int RenderProcessorCount;
+extern bool manualRenderMode;
 
 class RenderController
 {

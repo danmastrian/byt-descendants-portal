@@ -219,6 +219,7 @@ public:
 
     virtual void Activate()
     {
+        manualRenderMode = true;
         consecutiveBackPresses = 0;
     }
 
@@ -253,6 +254,7 @@ public:
 
             if (consecutiveBackPresses == 5)
             {
+                manualRenderMode = false;
                 return parent;
             }
 
