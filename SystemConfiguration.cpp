@@ -35,7 +35,9 @@ bool SystemConfiguration::InitializeStorage()
     // to make sure the filesystem was mounted.
     if (!fatfs.begin(&flash))
     {
-        Serial.println(F("Error, failed to mount newly formatted filesystem!"));
+        // Use SdFat_format example sketch from Adafruit_SPIFlash library
+        // to initialize flash on the board with a FAT filesystem.
+        Serial.println(F("Error, failed to mount FAT filesystem!"));
         return false;
     }
     StartupMessage("FAT FS init OK");

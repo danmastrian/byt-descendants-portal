@@ -36,7 +36,7 @@ void StartupMessage(const char *msg)
 
     Serial.println(msg);
 
-    delay(100);
+    delay(50);
 }
 
 void SystemPanic(const char *msg)

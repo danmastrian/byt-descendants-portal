@@ -35,6 +35,51 @@ void SERCOM4_1_Handler() { myWire.onService(); }
 void SERCOM4_2_Handler() { myWire.onService(); }
 void SERCOM4_3_Handler() { myWire.onService(); }
 
+void CommonFaultHandler(const char* handlerName)
+{
+  Serial.printf("CRITICAL FAULT: %s\n", handlerName);
+  Serial.flush();
+
+  NVIC_SystemReset();
+  
+  while (true);
+}
+
+extern "C" void HardFault_Handler(void)
+{
+  CommonFaultHandler("HardFault");
+}
+
+extern "C" void MemManage_Handler(void)
+{
+  CommonFaultHandler("MemManage");
+}
+
+extern "C" void BusFault_Handler(void)
+{
+  CommonFaultHandler("BusFault");
+}
+
+extern "C" void UsageFault_Handler(void)
+{
+  CommonFaultHandler("UsageFault");
+}
+
+void EnableWatchdogTimer()
+{
+  WDT->CONFIG.bit.PER = 8; // ~2 second reset period
+  WDT->CTRLA.bit.ENABLE = 1;
+  while (WDT->SYNCBUSY.bit.ENABLE);
+
+  Serial.println("WatchdogTimer enabled");
+}
+
+void ResetWatchdogTimer()
+{
+  WDT->CLEAR.reg = 0xA5;
+  while (WDT->SYNCBUSY.bit.CLEAR);
+}
+
 class TestRenderProcessor : public RenderProcessor
 {
 public:
@@ -278,6 +323,7 @@ RootRenderProcessor rrp;
 RenderController renderer(&rrp);
 volatile unsigned long lastIsrUsec = 0;
 CRC32 crc;
+unsigned long lastLoopStatusReportUsec = 0;
 
 void DisplayTestPattern()
 {
@@ -382,7 +428,7 @@ void setup()
   pinPeripheral(DMX_INPUT_PIN_SCK, PIO_SERCOM_ALT);
   
   InitializeDisplay();
-  StartupMessage("Starting up...");
+  StartupMessage("STARTING UP...");
 
   if (!InitKeypad())
   {
@@ -401,11 +447,20 @@ void setup()
     SystemPanic("LED init failed");
   }
   StartupMessage("LED init OK");
+
+  EnableWatchdogTimer();
+  StartupMessage("WDT init OK");
 }
 
 void loop()
 {
   unsigned long startTimeUsec = micros();
+
+  if (startTimeUsec - lastLoopStatusReportUsec > 1000000)
+  {
+    Serial.printf("System loop alive @ %u us\n", startTimeUsec);
+    lastLoopStatusReportUsec = startTimeUsec;
+  }
 
   uiController.Process();
   renderer.Render();
@@ -417,6 +472,8 @@ void loop()
   fps = (double)1000000.0 / (double)elapsedUsec;
 
   //Serial.println(lastIsrUsec);
+
+  ResetWatchdogTimer();
 }
 
 void rainbow()
