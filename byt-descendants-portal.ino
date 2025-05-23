@@ -130,12 +130,7 @@ DmxRenderProcessor()
     );
 
     animationContext.SetFlashBrightness(
-      //
-      // Temporarily ignore the flash brightness (strobe intensity) DMX channel.
-      // Fix cues and undo this for the next sensory-friendly show!
-      //
-      // GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_FLASH_BRIGHTNESS)
-      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_MASTER_BRIGHTNESS)
+      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_FLASH_BRIGHTNESS)
     );
 
     strip.setBrightness(
