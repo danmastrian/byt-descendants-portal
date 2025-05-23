@@ -11,6 +11,10 @@
 #include <CRC32.h>
 #include "AnimationContext.h"
 #include <Arduino.h>
+#include "IdleRenderProcessor.h"
+#include "TestRenderProcessor.h"
+#include "DmxRenderProcessor.h"
+#include "ShowRenderProcessor.h"
 
 #define STATIC_ASSERT(condition) typedef char p__LINE__[ (condition) ? 1 : -1];
 #define ASSERT_TYPE_SIZE(type, bytes) STATIC_ASSERT(sizeof(type) == (bytes))
@@ -79,197 +83,6 @@ void ResetWatchdogTimer()
   WDT->CLEAR.reg = 0xA5;
   while (WDT->SYNCBUSY.bit.CLEAR);
 }
-
-class TestRenderProcessor : public RenderProcessor
-{
-public:
-
-  TestRenderProcessor()
-    : RenderProcessor("TEST")
-  {
-  }
-
-  virtual void Render() const
-  {
-    rainbow();
-  }
-
-  virtual void WriteStatusString(Print& output) const
-  {
-    output.print(F("TEST"));
-  }
-};
-
-class IdleRenderProcessor : public RenderProcessor
-{
-public:
-
-  IdleRenderProcessor()
-    : RenderProcessor("IDLE")
-  {
-  }
-
-  virtual void Render() const
-  {
-  }
-
-  virtual void WriteStatusString(Print& output) const
-  {
-    output.print(F("IDLE"));
-  }
-};
-
-class DmxRenderProcessor : public RenderProcessor
-{
-private:
-
-  const uint8_t DMX_EFFECT_MANUAL_RGBW = 25;
-
-  uint8_t GetCurrentEffect() const
-  {
-    return GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_EFFECT_MODE) / 10;
-  }
-
-public:
-
-DmxRenderProcessor()
-    : RenderProcessor("DMX")
-  {
-  }
-
-  virtual void Render() const
-  {
-    uint8_t effect = GetCurrentEffect();
-
-    if (effect == DMX_EFFECT_MANUAL_RGBW)
-    {
-      // Manually set RGB for the whole ring
-      strip.fill(
-        RGBW(
-          GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_R),
-          GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_G),
-          GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_B),
-          GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_W)
-        ).GetRaw(),
-        0,
-        LED_COUNT_TOTAL
-      );
-
-      return;
-    }
-
-    switch (effect)
-    {
-      case 0:
-        animationContext.Stop();
-        break;
-
-      default:
-        animationContext.Start(effect - 1);
-        break;
-    }
-
-    animationContext.SetRotationSpeed(
-      // Set a minimum rotation speed, to avoid DMX setting it too low
-      max(15, GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_ROTATION_SPEED)) * 10
-    );
-
-    animationContext.SetFlashBrightness(
-      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_FLASH_BRIGHTNESS)
-    );
-
-    strip.setBrightness(
-      GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_MASTER_BRIGHTNESS)
-    );
-
-    animationContext.Render();
-  }
-
-  virtual void WriteStatusString(Print& output) const
-  {
-    if (GetCurrentEffect() == DMX_EFFECT_MANUAL_RGBW)
-    {
-      output.printf(
-        "%02X%02X%02X%02X",
-        GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_R),
-        GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_G),
-        GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_B),
-        GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_COLOR_W)
-      );
-
-      return;
-    }
-
-    output.print(F("DMX "));
-
-    if (animationContext.IsStopRequested() && animationContext.IsRunning())
-    {
-      output.print(F("STOP..."));
-    }
-    else if (animationContext.IsRunning())
-    {
-      output.print(animationContext.GetRunningAnimationId());
-      output.print(F(" @ "));
-      output.print(GetLogicalDmxChannelValue(LOGICAL_DMX_CHANNEL_MASTER_BRIGHTNESS));
-    }
-    else
-    {
-      output.print(F("---"));
-    }
-  }
-};
-
-class ShowRenderProcessor : public RenderProcessor
-{
-private:
-
-  const uint8_t sensoryFriendlyMaxBrightness = 20;
-
-  bool isSensoryFriendly;
-
-public:
-
-  ShowRenderProcessor(bool isSensoryFriendly)
-    : RenderProcessor(isSensoryFriendly ? "MANUAL SENS" : "MANUAL NORMAL"),
-      isSensoryFriendly(isSensoryFriendly)
-  {
-  }
-
-  virtual void Render() const
-  {
-    if (isSensoryFriendly)
-    {
-      strip.setBrightness(min(sysConfig.brightness, sensoryFriendlyMaxBrightness));
-      animationContext.SetFlashBrightness(0);
-    }
-    else
-    {
-      strip.setBrightness(sysConfig.brightness);
-      animationContext.SetFlashBrightness(255);
-    }
-
-    animationContext.SetRotationSpeed(LED_COUNT_PER_RING / 3);
-
-    animationContext.Render();
-  }
-
-  virtual void WriteStatusString(Print& output) const
-  {
-    if (animationContext.IsRunning())
-    {
-      if (animationContext.IsStopRequested())
-      {
-        output.print(F("STOP "));
-      }
-
-      output.print(animationContext.GetRunningAnimationId());
-    }
-    else
-    {
-      output.print(F("---"));
-    }
-  }
-};
 
 RenderProcessor* renderProcessors[] = {
   new IdleRenderProcessor(),
@@ -406,7 +219,6 @@ void onReceive(int len)
   }
 
   //unsigned long isrEndUsec = micros();
-
   //lastIsrUsec = isrEndUsec - isrStartUsec;
 }
 
@@ -475,19 +287,4 @@ void loop()
   //Serial.println(lastIsrUsec);
 
   ResetWatchdogTimer();
-}
-
-void rainbow()
-{
-  const long cyclePeriodMsec = 10000;
-  long firstPixelHue = (millis() % cyclePeriodMsec) * 65536 / cyclePeriodMsec;
-
-  // strip.rainbow() can take a single argument (first pixel hue) or
-  // optionally a few extras: number of rainbow repetitions (default 1),
-  // saturation and value (brightness) (both 0-255, similar to the
-  // ColorHSV() function, default 255), and a true/false flag for whether
-  // to apply gamma correction to provide 'truer' colors (default true).
-  strip.rainbow(firstPixelHue);
-  // Above line is equivalent to:
-  // strip.rainbow(firstPixelHue, 1, 255, 255, true);
 }
