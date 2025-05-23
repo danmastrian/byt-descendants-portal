@@ -415,6 +415,7 @@ void setup()
   memset(dmxData, 0, sizeof(dmxData));
 
   Serial.begin(115200);
+  delay(2000);
   Serial.println("Serial comm init OK");
 
   myWire.onReceive(onReceive);
