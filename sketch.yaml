@@ -1,6 +1,6 @@
 profiles:
   feather_m4:
-    fqbn: adafruit:samd:adafruit_feather_m4
+    fqbn: adafruit:samd:adafruit_feather_m4:speed=120,opt=fastest
     platforms:
       - platform: adafruit:samd (1.7.16)
         platform_index_url: https://adafruit.github.io/arduino-board-index/package_adafruit_index.json

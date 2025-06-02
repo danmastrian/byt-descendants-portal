@@ -230,8 +230,10 @@ void setup()
   delay(2000);
   Serial.println("Serial comm init OK");
 
-  myWire.onReceive(onReceive);
-  myWire.begin((uint8_t)I2C_DEV_ADDR);
+  Serial1.begin(460800, SERIAL_8N1);
+
+  //myWire.onReceive(onReceive);
+  //myWire.begin((uint8_t)I2C_DEV_ADDR);
   //myWire.setClock(400000);
   //myWire.setWireTimeout();
 
@@ -240,34 +242,40 @@ void setup()
   pinPeripheral(DMX_INPUT_PIN_SDA, PIO_SERCOM_ALT);
   pinPeripheral(DMX_INPUT_PIN_SCK, PIO_SERCOM_ALT);
   
-  InitializeDisplay();
-  StartupMessage("STARTING UP...");
+  //InitializeDisplay();
+  //StartupMessage("STARTING UP...");
 
-  if (!InitKeypad())
+  //if (!InitKeypad())
   {
-    SystemPanic("Keypad init failed");
+    //SystemPanic("Keypad init failed");
   }
-  StartupMessage("Keypad OK");
+  //StartupMessage("Keypad OK");
 
-  if (!sysConfig.InitializeStorage())
+  //if (!sysConfig.InitializeStorage())
   {
-    SystemPanic("Config load failed");
+    //SystemPanic("Config load failed");
   }
-  StartupMessage("Config load OK");
+  //StartupMessage("Config load OK");
 
-  if (!strip.begin())
+  //if (!strip.begin())
   {
-    SystemPanic("LED init failed");
+    //SystemPanic("LED init failed");
   }
-  StartupMessage("LED init OK");
+  //StartupMessage("LED init OK");
 
-  EnableWatchdogTimer();
-  StartupMessage("WDT init OK");
+  //EnableWatchdogTimer();
+  //StartupMessage("WDT init OK");
 }
 
 void loop()
 {
   unsigned long startTimeUsec = micros();
+
+  while (Serial1.available())
+  {
+    char c = Serial1.read();
+    Serial.print(c);
+  }
 
   if (startTimeUsec - lastLoopStatusReportUsec > 1000000)
   {
@@ -275,8 +283,8 @@ void loop()
     lastLoopStatusReportUsec = startTimeUsec;
   }
 
-  uiController.Process();
-  renderer.Render();
+  //uiController.Process();
+  //renderer.Render();
 
   unsigned long endTimeUsec = micros();
   unsigned long elapsedUsec = endTimeUsec - startTimeUsec;
@@ -286,5 +294,5 @@ void loop()
 
   //Serial.println(lastIsrUsec);
 
-  ResetWatchdogTimer();
+  //ResetWatchdogTimer();
 }
