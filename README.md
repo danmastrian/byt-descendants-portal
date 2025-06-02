@@ -1,6 +1,6 @@
 # LED Portal for Disney's _Descendants_ Musical
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![IMG_0848](https://github.com/user-attachments/assets/0ce6afca-fe0a-4230-8061-792cdd0d43ad)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![IMG_0848](https://github.com/user-attachments/assets/0ce6afca-fe0a-4230-8061-792cdd0d43ad) ![Screenshot 2025-06-01 192745](https://github.com/user-attachments/assets/24c56cc4-0dbe-4a2b-95bd-d9916ad9d7aa)
 
 ## Overview
 
