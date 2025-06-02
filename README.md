@@ -16,12 +16,6 @@ Aside from the animations themselves, most of the system is designed to be a gen
 
 Refer to the [wiki](https://github.com/danmastrian/byt-descendants-portal/wiki) for more details.
 
-## Goals
-
-- 30-60+ frames/sec
-- DMX latency < 50 msec
-- As ridiculously bright as possible
-
 ## Build + Deploy
 
 This project uses the Arduino CLI Sketch.yaml system. You may need to change COM ports in the yaml config.
