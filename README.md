@@ -1,5 +1,7 @@
 # LED Portal for Disney's _Descendants_ Musical
 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![IMG_0848](https://github.com/user-attachments/assets/0ce6afca-fe0a-4230-8061-792cdd0d43ad)
+
 ## Overview
 
 This repo contains the microcontroller code for a system that drives ~2300 WS2812 ("[NeoPixel](https://learn.adafruit.com/adafruit-neopixel-uberguide/the-magic-of-neopixels)") LEDs
