@@ -87,7 +87,7 @@ My hope was that this plastic would be able to be bent without heat while still 
 
 Because HDPE is inert, I could not rely on adhesives. The HDPE strips were connected with #10 bolts and nylon lock nuts. Outer layer seams were reinforced by [steel mending plates](https://www.homedepot.com/p/Everbilt-4-Pack-2-in-Black-Mending-Plate-33766/327600351) to avoid the strips bowing outwards.
 
-The LED strips came with 3M double-sided adhesive tape which adhered pretty well. But it was clear that the adhesion failed over time, especially as the strips were moved and bent. So to reliably secure the LED strips to the HDPE strips, I wrapped the entire ring with a clear stretchy monofilament, which worked very well.
+The LED strips came with 3M double-sided adhesive tape which adhered pretty well. But it was clear that the adhesion failed over time, especially as the strips were moved and bent. So to reliably secure the LED strips to the HDPE strips, I wrapped the entire ring with a [clear stretchy monofilament](https://www.michaels.com/product/stretch-magic-1mm-clear-bead-jewelry-cord-100m-10712654), which worked very well.
 
 ## User Interface
 
