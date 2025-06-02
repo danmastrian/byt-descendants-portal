@@ -14,7 +14,7 @@ The system includes a small [OLED display](https://www.amazon.com/dp/B08CDN5PSJ)
 
 Aside from the animations themselves, most of the system is designed to be a generic DMX-compatible driver for large NeoPixel installations.
 
-Currently, DMX universe refresh latency is ~40 msec, and render loop frequency is ~80 fps.
+Refer to the [wiki](https://github.com/danmastrian/byt-descendants-portal/wiki) for more details.
 
 ## Goals
 
