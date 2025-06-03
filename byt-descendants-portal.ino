@@ -230,7 +230,8 @@ void setup()
   delay(2000);
   Serial.println("Serial comm init OK");
 
-  Serial1.begin(460800, SERIAL_8N1);
+  Serial1.begin(115200, SERIAL_8N1);
+  //Serial1.setTimeout(1);
 
   //myWire.onReceive(onReceive);
   //myWire.begin((uint8_t)I2C_DEV_ADDR);
@@ -239,8 +240,8 @@ void setup()
 
   // Critical that these come *after* the TwoWire::begin() call above.
   // Map these pins to the alternate SERCOM (#4)
-  pinPeripheral(DMX_INPUT_PIN_SDA, PIO_SERCOM_ALT);
-  pinPeripheral(DMX_INPUT_PIN_SCK, PIO_SERCOM_ALT);
+  //pinPeripheral(DMX_INPUT_PIN_SDA, PIO_SERCOM_ALT);
+  //pinPeripheral(DMX_INPUT_PIN_SCK, PIO_SERCOM_ALT);
   
   //InitializeDisplay();
   //StartupMessage("STARTING UP...");
@@ -257,7 +258,7 @@ void setup()
   }
   //StartupMessage("Config load OK");
 
-  //if (!strip.begin())
+  if (!strip.begin())
   {
     //SystemPanic("LED init failed");
   }
@@ -267,15 +268,135 @@ void setup()
   //StartupMessage("WDT init OK");
 }
 
+typedef struct
+{
+  uint16_t StartMarker; // 0xCAFE
+  uint8_t MessageType;
+  uint16_t PayloadLength;
+  crc_size_t CrcValue;
+} MessageHeader;
+
+bool isPendingSync = true;
+MessageHeader* currentHeader = nullptr;
+byte serialBuffer[512] = { 0 };
+size_t bufferedBytes = 0;
+
+void ProcessMessagePayload(const byte* payload, uint8_t messageType, uint16_t payloadLength)
+{
+  switch (messageType)
+  {
+    case 0x01: // Example message type
+      Serial.printf("Processing message type 0x01 with payload length %u\n", payloadLength);
+      // Process the payload here
+      break;
+
+    case 0x02: // Another example message type
+      Serial.printf("Processing message type 0x02 with payload length %u\n", payloadLength);
+      // Process the payload here
+      break;
+
+    default:
+      Serial.printf("Unknown message type: 0x%02X\n", messageType);
+      break;
+  }
+}
+
+void ProcessSerialInput()
+{
+  if (bufferedBytes >= sizeof(serialBuffer))
+  {
+    Serial.println("Serial buffer overflow, resetting...");
+    bufferedBytes = 0;
+    currentHeader = nullptr;
+  }
+
+  size_t availableBytes = Serial1.available();
+  if (availableBytes == 0)
+  {
+    return;
+  }
+
+  Serial.printf("ProcessSerialInput() called; bufferedBytes = %u, availableBytes = %u\n", bufferedBytes, availableBytes);
+
+  size_t bytesRead = Serial1.readBytes(serialBuffer + bufferedBytes, min(availableBytes, sizeof(serialBuffer) - bufferedBytes));
+  if (bytesRead > 0)
+  {
+    Serial.printf("Received: %d bytes\n", bytesRead);
+    bufferedBytes += bytesRead;
+  }
+
+  if (currentHeader == nullptr)
+  {
+    // Check if we have enough bytes for a header
+    if (bufferedBytes < sizeof(MessageHeader))
+    {
+      return;
+    }
+    
+    currentHeader = (MessageHeader*)serialBuffer;
+  }
+
+  if (currentHeader->StartMarker != 0xCAFE)
+  {
+    Serial.printf("Invalid start marker: 0x%04X, resetting...\n", currentHeader->StartMarker);
+    bufferedBytes = 0;
+    currentHeader = nullptr;
+    return;
+  }
+
+  if (currentHeader->PayloadLength > sizeof(serialBuffer) - sizeof(MessageHeader))
+  {
+    // Invalid payload length, reset the buffer
+    Serial.printf("Invalid payload length: %u bytes, resetting...\n", currentHeader->PayloadLength);
+    bufferedBytes = 0;
+    currentHeader = nullptr;
+    return;
+  }
+
+  Serial.printf("Current header: MessageType = 0x%02X, PayloadLength = %u, CrcValue = %08X\n",
+    currentHeader->MessageType, currentHeader->PayloadLength, currentHeader->CrcValue);
+
+  if (bufferedBytes >= sizeof(MessageHeader) + currentHeader->PayloadLength)
+  {
+    // We have a complete message, process it
+
+    crc_size_t expectedCrcValue = currentHeader->CrcValue;
+    currentHeader->CrcValue = 0; // Temporarily set to 0 for CRC calculation
+
+    crc.reset();
+    crc.add(serialBuffer, sizeof(MessageHeader) + currentHeader->PayloadLength);
+    crc_size_t crcValueActual = crc.calc();
+      
+    if (crcValueActual == expectedCrcValue)
+    {
+      // Valid message, process it
+      ProcessMessagePayload(
+        serialBuffer + sizeof(MessageHeader),
+        currentHeader->MessageType,
+        currentHeader->PayloadLength);
+    }
+    else
+    {
+      Serial.printf("CRC MISMATCH: Actual CRC = %08X, Expected CRC = %08X\n", crcValueActual, expectedCrcValue);
+    }
+
+    // Consume the processed message from the buffer (copying memory...yuck)
+    bufferedBytes -= (sizeof(MessageHeader) + currentHeader->PayloadLength);
+    memmove(serialBuffer, serialBuffer + sizeof(MessageHeader) + currentHeader->PayloadLength, bufferedBytes);
+    currentHeader = nullptr; // Reset the header pointer for the next message
+  }
+}
+
 void loop()
 {
   unsigned long startTimeUsec = micros();
 
-  while (Serial1.available())
-  {
-    char c = Serial1.read();
-    Serial.print(c);
-  }
+  ProcessSerialInput();
+  // while (Serial1.available())
+  // {
+  //   char c = Serial1.read();
+  //   Serial.print(c);
+  // }
 
   if (startTimeUsec - lastLoopStatusReportUsec > 1000000)
   {
@@ -284,7 +405,7 @@ void loop()
   }
 
   //uiController.Process();
-  //renderer.Render();
+  renderer.Render();
 
   unsigned long endTimeUsec = micros();
   unsigned long elapsedUsec = endTimeUsec - startTimeUsec;
