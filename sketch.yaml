@@ -16,6 +16,7 @@ profiles:
       - SdFat - Adafruit Fork (2.2.3)
       - Adafruit SPIFlash (5.0.1)
       - CRC (1.0.3)
+      - SerialTransfer (3.1.4)
     port: COM4
 
   teensy_4_1:

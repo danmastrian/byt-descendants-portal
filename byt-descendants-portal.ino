@@ -15,6 +15,7 @@
 #include "TestRenderProcessor.h"
 #include "DmxRenderProcessor.h"
 #include "ShowRenderProcessor.h"
+#include <SerialTransfer.h>
 
 #define STATIC_ASSERT(condition) typedef char p__LINE__[ (condition) ? 1 : -1];
 #define ASSERT_TYPE_SIZE(type, bytes) STATIC_ASSERT(sizeof(type) == (bytes))
@@ -135,7 +136,7 @@ double fps = 0.0;
 RootRenderProcessor rrp;
 RenderController renderer(&rrp);
 volatile unsigned long lastIsrUsec = 0;
-CRC32 crc;
+CRC32 myCrc;
 unsigned long lastLoopStatusReportUsec = 0;
 
 void DisplayTestPattern()
@@ -177,9 +178,9 @@ void onReceive(int len)
     return;
   }
 
-  crc.reset();
-  crc.add(recvBuf, len - sizeof(crc_size_t)); // Exclude CRC bytes
-  crc_size_t crcValueActual = crc.calc();
+  myCrc.reset();
+  myCrc.add(recvBuf, len - sizeof(crc_size_t)); // Exclude CRC bytes
+  crc_size_t crcValueActual = myCrc.calc();
   
   crc_size_t crcValueExpected;
   memcpy(
@@ -222,6 +223,8 @@ void onReceive(int len)
   //lastIsrUsec = isrEndUsec - isrStartUsec;
 }
 
+SerialTransfer b2bSerialTransfer;
+
 void setup()
 {
   memset(dmxData, 0, sizeof(dmxData));
@@ -230,8 +233,9 @@ void setup()
   delay(2000);
   Serial.println("Serial comm init OK");
 
-  Serial1.begin(115200, SERIAL_8N1);
+  Serial1.begin(115200, SERIAL_8E2);
   //Serial1.setTimeout(1);
+  b2bSerialTransfer.begin(Serial1);
 
   //myWire.onReceive(onReceive);
   //myWire.begin((uint8_t)I2C_DEV_ADDR);
@@ -276,6 +280,15 @@ typedef struct
   crc_size_t CrcValue;
 } MessageHeader;
 
+const int DMX_CH_COUNT_PER_PACKET = 16;
+
+typedef struct DmxPacketFragment
+{
+  uint16_t startChannel; // Start channel (1-based index)
+  uint8_t channelCount; // Number of channels in this fragment
+  uint8_t data[DMX_CH_COUNT_PER_PACKET]; // DMX data for the channels
+} dmx_packet_fragment_t;
+
 bool isPendingSync = true;
 MessageHeader* currentHeader = nullptr;
 byte serialBuffer[512] = { 0 };
@@ -285,9 +298,11 @@ void ProcessMessagePayload(const byte* payload, uint8_t messageType, uint16_t pa
 {
   switch (messageType)
   {
-    case 0x01: // Example message type
-      Serial.printf("Processing message type 0x01 with payload length %u\n", payloadLength);
-      // Process the payload here
+    case 0x01:
+      Serial.printf("%3u ", ((dmx_packet_fragment_t*)payload)->startChannel);
+      // Serial.printf("DMX packet: startCh = %u, chCount = %u\n", 
+      //   ((dmx_packet_fragment_t*)payload)->startChannel,
+      //   ((dmx_packet_fragment_t*)payload)->channelCount);
       break;
 
     case 0x02: // Another example message type
@@ -302,6 +317,51 @@ void ProcessMessagePayload(const byte* payload, uint8_t messageType, uint16_t pa
 }
 
 void ProcessSerialInput()
+{
+  if (!b2bSerialTransfer.available())
+  {
+    return; // No data available
+  }
+
+  uint16_t recSize = 0;
+
+  MessageHeader header = { 0 };
+  recSize = b2bSerialTransfer.rxObj(header, recSize);
+
+  dmx_packet_fragment_t dmxFragment = { 0 };
+  recSize = b2bSerialTransfer.rxObj(dmxFragment, recSize);
+
+  // We have a complete message, process it
+
+  if (header.StartMarker != 0xCAFE)
+  {
+    Serial.printf("********* Invalid start marker: 0x%04X, resetting...\n", header.StartMarker);
+    return; // Invalid start marker, ignore this message
+  }
+
+  crc_size_t expectedCrcValue = header.CrcValue;
+  header.CrcValue = 0; // Temporarily set to 0 for CRC calculation
+
+  myCrc.reset();
+  myCrc.add((uint8_t*)&header, sizeof(header));
+  myCrc.add((uint8_t*)&dmxFragment, sizeof(dmxFragment));
+  crc_size_t crcValueActual = myCrc.calc();
+    
+  if (crcValueActual == expectedCrcValue)
+  {
+    // Valid message, process it
+    ProcessMessagePayload(
+      (const byte*)&dmxFragment,
+      header.MessageType,
+      header.PayloadLength);
+  }
+  else
+  {
+    Serial.printf("********* CRC MISMATCH: Actual CRC = %08X, Expected CRC = %08X\n", crcValueActual, expectedCrcValue);
+  }
+}
+
+void xProcessSerialInput()
 {
   if (bufferedBytes >= sizeof(serialBuffer))
   {
@@ -363,9 +423,9 @@ void ProcessSerialInput()
     crc_size_t expectedCrcValue = currentHeader->CrcValue;
     currentHeader->CrcValue = 0; // Temporarily set to 0 for CRC calculation
 
-    crc.reset();
-    crc.add(serialBuffer, sizeof(MessageHeader) + currentHeader->PayloadLength);
-    crc_size_t crcValueActual = crc.calc();
+    myCrc.reset();
+    myCrc.add(serialBuffer, sizeof(MessageHeader) + currentHeader->PayloadLength);
+    crc_size_t crcValueActual = myCrc.calc();
       
     if (crcValueActual == expectedCrcValue)
     {
@@ -400,12 +460,12 @@ void loop()
 
   if (startTimeUsec - lastLoopStatusReportUsec > 1000000)
   {
-    Serial.printf("System loop alive @ %u us\n", startTimeUsec);
+    Serial.printf("\nSystem loop alive @ %u us\n", startTimeUsec);
     lastLoopStatusReportUsec = startTimeUsec;
   }
 
   //uiController.Process();
-  renderer.Render();
+  //renderer.Render();
 
   unsigned long endTimeUsec = micros();
   unsigned long elapsedUsec = endTimeUsec - startTimeUsec;
