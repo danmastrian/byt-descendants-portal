@@ -1,0 +1,1 @@
+arduino-cli compile --build-property "compiler.cpp.extra_flags=`"-D_GIT_HASH=$(git rev-parse --short HEAD)`""

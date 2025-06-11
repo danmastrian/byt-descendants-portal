@@ -6,6 +6,8 @@
 #include "LedStrip.h"
 #include "RenderController.h"
 #include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_SPIDevice.h>
 #include "wiring_private.h"
 #include "DmxData.h"
 #include <CRC32.h>
@@ -16,6 +18,13 @@
 #include "DmxRenderProcessor.h"
 #include "ShowRenderProcessor.h"
 #include <SerialTransfer.h>
+#include <samd.h>
+#include <sercom.h>
+#include "RealTimeClock.h"
+#include "RtcTimer.h"
+
+#define STRINGIFY(x) #x
+#define XSTRINGIFY(x) STRINGIFY(x)
 
 #define STATIC_ASSERT(condition) typedef char p__LINE__[ (condition) ? 1 : -1];
 #define ASSERT_TYPE_SIZE(type, bytes) STATIC_ASSERT(sizeof(type) == (bytes))
@@ -225,17 +234,96 @@ void onReceive(int len)
 
 SerialTransfer b2bSerialTransfer;
 
+#include <SPI.h>
+
+void SERCOM1_0_Handler() {
+  if (SERCOM1->SPI.INTFLAG.bit.RXC) {
+    uint8_t data = SERCOM1->SPI.DATA.reg;
+    // Do something with received data
+    //SERCOM1->SPI.DATA.reg = data + 1; // example echo + 1
+    Serial.printf("IRQ Received SPI data: %02X\n", data);
+  }
+}
+
+void SERCOM1_1_Handler() {
+  SERCOM1_0_Handler();
+}
+
+void SERCOM1_2_Handler() {
+  SERCOM1_0_Handler();
+}
+void SERCOM1_3_Handler() {
+  SERCOM1_0_Handler();
+}
+
+void ss_falling() {
+  // SS went LOW: master starting transaction
+  pinMode(5, OUTPUT); // Enable MISO output
+  digitalWrite(5, LOW); // Set MISO high to avoid contention
+  Serial.println("SS falling: master starting transaction");
+}
+
+void ss_rising() {
+  // SS went HIGH: master done
+  pinMode(5, INPUT);  // Tristate MISO to prevent bus contention
+  Serial.println("SS rising: master done");
+}
+
 void setup()
 {
   memset(dmxData, 0, sizeof(dmxData));
 
   Serial.begin(115200);
-  delay(2000);
+  delay(5000);
   Serial.println("Serial comm init OK");
 
+  Serial.println("Code version: " XSTRINGIFY(_GIT_HASH));
+
+  RealTimeClock::begin();
+
+  /*
   Serial1.begin(115200, SERIAL_8E2);
   //Serial1.setTimeout(1);
   b2bSerialTransfer.begin(Serial1);
+*/
+
+  SERCOM1->SPI.CTRLA.bit.ENABLE = 0;
+  while (SERCOM1->SPI.SYNCBUSY.bit.ENABLE);
+
+  SERCOM1->SPI.CTRLA.bit.SWRST = 1;
+  while (SERCOM1->SPI.SYNCBUSY.bit.SWRST);
+
+  pinPeripheral(SCK, PIO_SERCOM); // SCK
+  pinPeripheral(MOSI, PIO_SERCOM); // Data IN
+  pinPeripheral(MISO, PIO_SERCOM); // SS
+  pinPeripheral(5, PIO_SERCOM); // Data OUT
+
+  //pinMode(SCK, INPUT); // Ensure clean high when inactive
+  //pinMode(MISO, INPUT_PULLUP); // Ensure clean high when inactive
+  //pinMode(5, INPUT);      // Start tristated
+
+  //attachInterrupt(digitalPinToInterrupt(6), ss_falling, FALLING);
+  //attachInterrupt(digitalPinToInterrupt(6), ss_rising, RISING);
+
+  //MCLK->APBAMASK.reg |= MCLK_APBAMASK_SERCOM1; // Enable SERCOM1 clock
+  //GCLK->PCHCTRL[SERCOM1_GCLK_ID_CORE].reg = GCLK_PCHCTRL_GEN_GCLK1_Val | GCLK_PCHCTRL_CHEN; // Use GCLK0 for SERCOM1
+
+  SERCOM1->SPI.CTRLA.reg = SERCOM_SPI_CTRLA_MODE(0x2) |
+                         SERCOM_SPI_CTRLA_DOPO(0x0) |   // MISO=PAD[3], MOSI=PAD[0], SCK=PAD[1], SS=PAD[2]
+                         SERCOM_SPI_CTRLA_DIPO(0x3) |   // MOSI on PAD[0]
+                         SERCOM_SPI_CTRLA_FORM(0);      // Frame format: SPI frame
+
+  SERCOM1->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(0) |   // 8 bits
+                         SERCOM_SPI_CTRLB_RXEN;        // Enable receiver
+
+  //SERCOM1->SPI.INTENSET.reg = SERCOM_SPI_INTENSET_RXC;    // Enable RX complete interrupt
+  //NVIC_EnableIRQ(SERCOM1_0_IRQn);
+  //NVIC_EnableIRQ(SERCOM1_1_IRQn);
+  //NVIC_EnableIRQ(SERCOM1_2_IRQn);
+  //NVIC_EnableIRQ(SERCOM1_3_IRQn);
+
+  SERCOM1->SPI.CTRLA.bit.ENABLE = 1;                      // Enable SERCOM SPI
+  while (SERCOM1->SPI.SYNCBUSY.bit.ENABLE);
 
   //myWire.onReceive(onReceive);
   //myWire.begin((uint8_t)I2C_DEV_ADDR);
@@ -262,7 +350,7 @@ void setup()
   }
   //StartupMessage("Config load OK");
 
-  if (!strip.begin())
+  //if (!strip.begin())
   {
     //SystemPanic("LED init failed");
   }
@@ -449,31 +537,41 @@ void xProcessSerialInput()
 
 void loop()
 {
-  unsigned long startTimeUsec = micros();
+  //RtcTimer timerLoop("Main loop");
 
-  ProcessSerialInput();
+  //ProcessSerialInput();
   // while (Serial1.available())
   // {
   //   char c = Serial1.read();
   //   Serial.print(c);
   // }
 
+  if (SERCOM1->SPI.INTFLAG.bit.RXC) {   // Receive complete
+    uint8_t receivedData = SERCOM1->SPI.DATA.reg;  // Read received data
+    Serial.printf("Received SPI data: %02X\n", receivedData);
+  }
+  
+  /*
   if (startTimeUsec - lastLoopStatusReportUsec > 1000000)
   {
     Serial.printf("\nSystem loop alive @ %u us\n", startTimeUsec);
     lastLoopStatusReportUsec = startTimeUsec;
   }
+  */
 
-  //uiController.Process();
-  //renderer.Render();
+  {
+    //RtcTimer timerUiController("UIController::Process");
+    //uiController.Process();
+  }
+  {
+    //RtcTimer timerRender("Render");
+    //renderer.Render();
+  }
 
-  unsigned long endTimeUsec = micros();
-  unsigned long elapsedUsec = endTimeUsec - startTimeUsec;
+  //timerLoop.Stop();
+  //unsigned long elapsedUsec = timerLoop.ElapsedMicroseconds();
 
-  //Serial.println(elapsedUsec);
-  fps = (double)1000000.0 / (double)elapsedUsec;
-
-  //Serial.println(lastIsrUsec);
+  //fps = (double)1000000.0 / (double)elapsedUsec;
 
   //ResetWatchdogTimer();
 }
