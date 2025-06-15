@@ -9,20 +9,31 @@ private:
   const char* label_;
   uint32_t startTime_;
   uint32_t stopTime_;
+  bool outputElapsedTime_;
 
 public:
 
-  RtcTimer(const char* label)
+  RtcTimer(const char* label, bool outputElapsedTime = false)
     : label_(label),
-      startTime_(RealTimeClock::readClockRegister()),
-      stopTime_(0)
+      outputElapsedTime_(outputElapsedTime)
   {
+    Restart();
   }
 
   ~RtcTimer()
   {
     Stop();
-    Serial.printf("%s: %u us\n", label_, ElapsedMicroseconds());
+
+    if (outputElapsedTime_)
+    {
+        OutputElapsedTime(Serial);
+    }
+  }
+
+  void Restart()
+  {
+    startTime_ = RealTimeClock::readClockRegister();
+    stopTime_ = 0;
   }
 
   void Stop()
@@ -31,6 +42,11 @@ public:
     {
       stopTime_ = RealTimeClock::readClockRegister();
     }
+  }
+
+  void OutputElapsedTime(Print& output)
+  {
+    output.printf("%s: %u us\n", label_, ElapsedMicroseconds());
   }
 
   uint32_t ElapsedMicroseconds() const

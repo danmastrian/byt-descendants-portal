@@ -235,6 +235,79 @@ void onReceive(int len)
 SerialTransfer b2bSerialTransfer;
 
 #include <SPI.h>
+#include <Adafruit_ZeroDMA.h>
+
+Adafruit_ZeroDMA myDMA;
+
+// Data we'll issue to mySPI.  There are TWO buffers; one being
+// filled with new data while the other's being transmitted in
+// the background.
+#define DATA_LENGTH 128+9
+uint8_t source_memory[2][DATA_LENGTH],
+        buffer_being_filled = 0, // Index of 'filling' buffer
+        buffer_value        = 0; // Value of fill
+
+DmacDescriptor *desc; // DMA descriptor address (so we can change contents)
+
+RtcTimer packetTimer("PacketTimer");
+uint8_t lastPacketPrefix = 0; // Last packet prefix byte received
+
+// Callback for end-of-DMA-transfer
+void dma_callback(Adafruit_ZeroDMA *dma)
+{
+  packetTimer.Stop();
+  unsigned long elapsedUsec = packetTimer.ElapsedMicroseconds();
+
+  Serial.printf("DMA RXC (%6u us):  %02X | %02X%02X %02X%02X | %02X%02X %02X%02X (%u B/sec) ~ %u B\n",
+    elapsedUsec,
+    source_memory[buffer_being_filled][0],
+    source_memory[buffer_being_filled][1],
+    source_memory[buffer_being_filled][2],
+    source_memory[buffer_being_filled][3],
+    source_memory[buffer_being_filled][4],
+    source_memory[buffer_being_filled][5],
+    source_memory[buffer_being_filled][6],
+    source_memory[buffer_being_filled][7],
+    source_memory[buffer_being_filled][8],
+    (unsigned long)DATA_LENGTH * 1000000ul / elapsedUsec,
+    DATA_LENGTH);
+
+  if (source_memory[buffer_being_filled][0] != (uint8_t)(lastPacketPrefix + 1))
+  {
+    Serial.printf("WARNING: DROPPED PACKET: %02X -> %02X\n", lastPacketPrefix, source_memory[buffer_being_filled][0]);
+  }
+  lastPacketPrefix = source_memory[buffer_being_filled][0];
+
+  for (int i = 9; i < DATA_LENGTH; i++)
+  {
+    if (source_memory[buffer_being_filled][i] != (i-9))
+    {
+      Serial.printf(
+        "WARNING: Unexpected value 0x%02X at index 0x%02X\n",
+        source_memory[buffer_being_filled][i],
+        (i-9));
+    }
+  }
+
+  buffer_being_filled = 1 - buffer_being_filled;
+
+  myDMA.changeDescriptor(
+    desc,           // DMA descriptor address
+    (void *)(&SERCOM1->SPI.DATA.reg),
+    source_memory[buffer_being_filled]); // New src; dst & count don't change
+
+  ZeroDMAstatus stat = myDMA.startJob(); // Go!
+  //myDMA.printStatus(stat);
+
+  packetTimer.Restart();
+}
+
+void dma_callback_error(Adafruit_ZeroDMA *dma)
+{
+  // This is the error callback, if needed
+  Serial.println("DMA Error callback");
+  // Handle error here
+}
 
 void SERCOM1_0_Handler() {
   if (SERCOM1->SPI.INTFLAG.bit.RXC) {
@@ -269,24 +342,8 @@ void ss_rising() {
   Serial.println("SS rising: master done");
 }
 
-void setup()
+void InitSpiSercom()
 {
-  memset(dmxData, 0, sizeof(dmxData));
-
-  Serial.begin(115200);
-  delay(5000);
-  Serial.println("Serial comm init OK");
-
-  Serial.println("Code version: " XSTRINGIFY(_GIT_HASH));
-
-  RealTimeClock::begin();
-
-  /*
-  Serial1.begin(115200, SERIAL_8E2);
-  //Serial1.setTimeout(1);
-  b2bSerialTransfer.begin(Serial1);
-*/
-
   SERCOM1->SPI.CTRLA.bit.ENABLE = 0;
   while (SERCOM1->SPI.SYNCBUSY.bit.ENABLE);
 
@@ -324,6 +381,54 @@ void setup()
 
   SERCOM1->SPI.CTRLA.bit.ENABLE = 1;                      // Enable SERCOM SPI
   while (SERCOM1->SPI.SYNCBUSY.bit.ENABLE);
+}
+
+void setup()
+{
+  memset(dmxData, 0, sizeof(dmxData));
+
+  Serial.begin(115200);
+  delay(5000);
+  Serial.println("Serial comm init OK");
+
+  Serial.println("Code version: " XSTRINGIFY(_GIT_HASH));
+
+  RealTimeClock::begin();
+
+  /*
+  Serial1.begin(115200, SERIAL_8E2);
+  //Serial1.setTimeout(1);
+  b2bSerialTransfer.begin(Serial1);
+*/
+
+  InitSpiSercom();
+
+
+  myDMA.setTrigger(SERCOM1_DMAC_ID_RX);
+  myDMA.setAction(DMA_TRIGGER_ACTON_BEAT);
+
+  Serial.print("Allocating DMA channel...");
+  ZeroDMAstatus stat = myDMA.allocate();
+  myDMA.printStatus(stat);
+
+  desc = myDMA.addDescriptor(
+    (void *)(&SERCOM1->SPI.DATA.reg),   // move data from here
+    source_memory[buffer_being_filled], // to here
+    DATA_LENGTH,                        // this many...
+    DMA_BEAT_SIZE_BYTE,                 // bytes/hword/words
+    false,                              // increment source addr?
+    true);                              // increment dest addr?
+
+  Serial.println("Adding callback");
+  // register_callback() can optionally take a second argument
+  // (callback type), default is DMA_CALLBACK_TRANSFER_DONE
+  myDMA.setCallback(dma_callback);
+  myDMA.setCallback(dma_callback_error, DMA_CALLBACK_TRANSFER_ERROR);
+
+  stat = myDMA.startJob();
+  myDMA.printStatus(stat);
+
+  packetTimer.Restart();
 
   //myWire.onReceive(onReceive);
   //myWire.begin((uint8_t)I2C_DEV_ADDR);
@@ -350,7 +455,7 @@ void setup()
   }
   //StartupMessage("Config load OK");
 
-  //if (!strip.begin())
+  if (!strip.begin())
   {
     //SystemPanic("LED init failed");
   }
@@ -537,7 +642,30 @@ void xProcessSerialInput()
 
 void loop()
 {
-  //RtcTimer timerLoop("Main loop");
+  /*
+  if (packetTimer.ElapsedMicroseconds() > 5000000)
+  {
+    Serial.println("DMA RXC timeout, resetting...");
+    
+    myDMA.abort();
+
+    Serial.println("Reinitializing SPI SERCOM...");
+
+    SERCOM1->SPI.CTRLA.bit.SWRST = 1;
+    while (SERCOM1->SPI.SYNCBUSY.bit.SWRST);
+
+    InitSpiSercom(); // Reinitialize the SPI SERCOM
+    
+    Serial.println("Reinitializing DMA...");
+
+    ZeroDMAstatus stat = myDMA.startJob();
+    myDMA.printStatus(stat);
+
+    packetTimer.Restart();
+  }
+  */
+
+  //RtcTimer timerLoop("Main loop", true);
 
   //ProcessSerialInput();
   // while (Serial1.available())
@@ -546,10 +674,17 @@ void loop()
   //   Serial.print(c);
   // }
 
-  if (SERCOM1->SPI.INTFLAG.bit.RXC) {   // Receive complete
-    uint8_t receivedData = SERCOM1->SPI.DATA.reg;  // Read received data
-    Serial.printf("Received SPI data: %02X\n", receivedData);
+  // if (SERCOM1->SPI.INTFLAG.bit.RXC) {   // Receive complete
+  //   uint8_t receivedData = SERCOM1->SPI.DATA.reg;  // Read received data
+  //   Serial.printf("Received SPI data: %02X\n", receivedData);
+  // }
+
+  noInterrupts(); // Disable interrupts
+  for (int i = 0; i < 1000000; i++)
+  {
+    asm volatile ("nop"); // NOPs to allow time for the DMA transfer to complete
   }
+  interrupts();
   
   /*
   if (startTimeUsec - lastLoopStatusReportUsec > 1000000)
@@ -564,8 +699,8 @@ void loop()
     //uiController.Process();
   }
   {
-    //RtcTimer timerRender("Render");
-    //renderer.Render();
+    //RtcTimer timerRender("Render", true);
+    renderer.Render();
   }
 
   //timerLoop.Stop();

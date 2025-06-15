@@ -2,8 +2,8 @@
 #include "Constants.h"
 
 int8_t pins[] = {
-    SCK,
-    5,
+    -1,//SCK,
+    -1,//5,
     6,
     9,
     10,
