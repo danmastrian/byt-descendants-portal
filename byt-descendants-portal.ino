@@ -243,14 +243,20 @@ Adafruit_ZeroDMA myDMA;
 // filled with new data while the other's being transmitted in
 // the background.
 #define DATA_LENGTH 128+9
-uint8_t source_memory[2][DATA_LENGTH],
+
+const size_t BUFFER_COUNT = 100;
+
+uint8_t source_memory[BUFFER_COUNT][DATA_LENGTH],
         buffer_being_filled = 0, // Index of 'filling' buffer
         buffer_value        = 0; // Value of fill
 
-DmacDescriptor *desc; // DMA descriptor address (so we can change contents)
+DmacDescriptor* desc[BUFFER_COUNT]; // DMA descriptor address (so we can change contents)
 
 RtcTimer packetTimer("PacketTimer");
 uint8_t lastPacketPrefix = 0; // Last packet prefix byte received
+
+unsigned long bytesTransferredPrevious = 0;
+volatile unsigned long bytesTransferred = 0;
 
 // Callback for end-of-DMA-transfer
 void dma_callback(Adafruit_ZeroDMA *dma)
@@ -258,46 +264,60 @@ void dma_callback(Adafruit_ZeroDMA *dma)
   packetTimer.Stop();
   unsigned long elapsedUsec = packetTimer.ElapsedMicroseconds();
 
-  Serial.printf("DMA RXC (%6u us):  %02X | %02X%02X %02X%02X | %02X%02X %02X%02X (%u B/sec) ~ %u B\n",
-    elapsedUsec,
-    source_memory[buffer_being_filled][0],
-    source_memory[buffer_being_filled][1],
-    source_memory[buffer_being_filled][2],
-    source_memory[buffer_being_filled][3],
-    source_memory[buffer_being_filled][4],
-    source_memory[buffer_being_filled][5],
-    source_memory[buffer_being_filled][6],
-    source_memory[buffer_being_filled][7],
-    source_memory[buffer_being_filled][8],
-    (unsigned long)DATA_LENGTH * 1000000ul / elapsedUsec,
-    DATA_LENGTH);
+  int currentDescIndex = ((byte*)(((DmacDescriptor*)DMAC->WRBADDR.reg)[dma->getChannel()].DSTADDR.reg) - 1 - (byte*)source_memory) / sizeof(source_memory[0]);
+  int readyBufferCount = (currentDescIndex + BUFFER_COUNT - buffer_being_filled) % BUFFER_COUNT;
 
-  if (source_memory[buffer_being_filled][0] != (uint8_t)(lastPacketPrefix + 1))
+  for (int rbIdx = 0; rbIdx < readyBufferCount; rbIdx++)
   {
-    Serial.printf("WARNING: DROPPED PACKET: %02X -> %02X\n", lastPacketPrefix, source_memory[buffer_being_filled][0]);
-  }
-  lastPacketPrefix = source_memory[buffer_being_filled][0];
+    Serial.printf("%sDMA RXC %2u (%6u us):  %02X %02X%02X%02X%02X %02X%02X%02X%02X (%u B, %5u B/s) [%2d %2d]\n",
+      rbIdx == 0 ? "*" : " ",
+      buffer_being_filled,
+      elapsedUsec,
+      source_memory[buffer_being_filled][0],
+      source_memory[buffer_being_filled][1],
+      source_memory[buffer_being_filled][2],
+      source_memory[buffer_being_filled][3],
+      source_memory[buffer_being_filled][4],
+      source_memory[buffer_being_filled][5],
+      source_memory[buffer_being_filled][6],
+      source_memory[buffer_being_filled][7],
+      source_memory[buffer_being_filled][8],
+      DATA_LENGTH,
+      (unsigned long)(DATA_LENGTH) * 1000000ul / elapsedUsec,
+      currentDescIndex,
+      readyBufferCount);
 
-  for (int i = 9; i < DATA_LENGTH; i++)
-  {
-    if (source_memory[buffer_being_filled][i] != (i-9))
+    bytesTransferred += DATA_LENGTH;
+
+    if (source_memory[buffer_being_filled][0] != (uint8_t)(lastPacketPrefix + 1))
     {
-      Serial.printf(
-        "WARNING: Unexpected value 0x%02X at index 0x%02X\n",
-        source_memory[buffer_being_filled][i],
-        (i-9));
+      Serial.printf("WARNING: DROPPED PACKET: %02X -> %02X\n", lastPacketPrefix, source_memory[buffer_being_filled][0]);
     }
+    lastPacketPrefix = source_memory[buffer_being_filled][0];
+
+    for (int i = 9; i < DATA_LENGTH; i++)
+    {
+      if (source_memory[buffer_being_filled][i] != (i-9))
+      {
+        Serial.printf(
+          "WARNING: Unexpected value 0x%02X at index 0x%02X\n",
+          source_memory[buffer_being_filled][i],
+          (i-9));
+      }
+    }
+
+    buffer_being_filled = (buffer_being_filled + 1) % BUFFER_COUNT;
   }
 
-  buffer_being_filled = 1 - buffer_being_filled;
-
+  /*
   myDMA.changeDescriptor(
     desc,           // DMA descriptor address
     (void *)(&SERCOM1->SPI.DATA.reg),
     source_memory[buffer_being_filled]); // New src; dst & count don't change
-
-  ZeroDMAstatus stat = myDMA.startJob(); // Go!
+*/
+  //ZeroDMAstatus stat = myDMA.startJob(); // Go!
   //myDMA.printStatus(stat);
+  
 
   packetTimer.Restart();
 }
@@ -411,19 +431,27 @@ void setup()
   ZeroDMAstatus stat = myDMA.allocate();
   myDMA.printStatus(stat);
 
-  desc = myDMA.addDescriptor(
-    (void *)(&SERCOM1->SPI.DATA.reg),   // move data from here
-    source_memory[buffer_being_filled], // to here
-    DATA_LENGTH,                        // this many...
-    DMA_BEAT_SIZE_BYTE,                 // bytes/hword/words
-    false,                              // increment source addr?
-    true);                              // increment dest addr?
+  for (size_t i = 0; i < BUFFER_COUNT; i++)
+  {
+    desc[i] = myDMA.addDescriptor(
+      (void *)(&SERCOM1->SPI.DATA.reg),   // move data from here
+      source_memory[i], // to here
+      DATA_LENGTH,                        // this many...
+      DMA_BEAT_SIZE_BYTE,                 // bytes/hword/words
+      false,                              // increment source addr?
+      true);                              // increment dest addr?
+
+    desc[i]->BTCTRL.bit.EVOSEL = DMA_EVENT_OUTPUT_BLOCK; // Enable event on beat
+    desc[i]->BTCTRL.bit.BLOCKACT = DMA_BLOCK_ACTION_INT; // Don't stop on block complete
+  }
 
   Serial.println("Adding callback");
   // register_callback() can optionally take a second argument
   // (callback type), default is DMA_CALLBACK_TRANSFER_DONE
   myDMA.setCallback(dma_callback);
   myDMA.setCallback(dma_callback_error, DMA_CALLBACK_TRANSFER_ERROR);
+
+  myDMA.loop(true);
 
   stat = myDMA.startJob();
   myDMA.printStatus(stat);
@@ -665,7 +693,7 @@ void loop()
   }
   */
 
-  //RtcTimer timerLoop("Main loop", true);
+  RtcTimer timerLoop("Main loop");
 
   //ProcessSerialInput();
   // while (Serial1.available())
@@ -680,7 +708,7 @@ void loop()
   // }
 
   noInterrupts(); // Disable interrupts
-  for (int i = 0; i < 1000000; i++)
+  for (int i = 0; i < 1500000; i++)
   {
     asm volatile ("nop"); // NOPs to allow time for the DMA transfer to complete
   }
@@ -709,4 +737,11 @@ void loop()
   //fps = (double)1000000.0 / (double)elapsedUsec;
 
   //ResetWatchdogTimer();
+
+  unsigned long bytesTransferredDelta = bytesTransferred - bytesTransferredPrevious;
+  bytesTransferredPrevious = bytesTransferred;
+
+  Serial.printf(
+    "BANDWIDTH %u bytes/sec\n", 
+    bytesTransferredDelta * 1000000ul / timerLoop.ElapsedMicroseconds());
 }
